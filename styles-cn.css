@@ -282,7 +282,7 @@ body::before {
   align-items: center;
   justify-content: center;
   min-height: 62px;
-  padding: 10px 8px;
+  padding: 18px 8px 10px;
   border-radius: 18px;
   color: #141816;
   background: var(--key);
@@ -365,17 +365,26 @@ body::before {
 
 .key__primary {
   display: block;
-  line-height: 1;
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+  word-break: keep-all;
 }
 
 .key__secondary {
   position: absolute;
-  top: 8px;
-  right: 10px;
-  font-size: 0.64rem;
-  letter-spacing: 0.12em;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.75);
+}
+
+.key--func .key__primary {
+  font-size: 0.84rem;
 }
 
 .side-panel {
@@ -805,7 +814,18 @@ body::before {
 
   .key {
     min-height: 56px;
+    padding: 16px 6px 8px;
     border-radius: 16px;
+    font-size: 0.86rem;
+  }
+
+  .key--func .key__primary {
+    font-size: 0.78rem;
+  }
+
+  .key__secondary {
+    font-size: 0.56rem;
+    top: 5px;
   }
 
   .complex-grid,
