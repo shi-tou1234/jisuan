@@ -1372,7 +1372,6 @@ function hydrateTools() {
 }
 
 function bindEvents() {
-  elements.keypad.addEventListener("click", handleKeypadClick);
   elements.modeTabs.forEach((button) => button.addEventListener("click", handleModeTabClick));
   elements.clearHistoryBtn.addEventListener("click", () => {
     state.history = [];
@@ -1381,29 +1380,161 @@ function bindEvents() {
   });
 
   elements.functionLibrary.addEventListener("click", handleLibraryClick);
-  elements.modeWorkspace.addEventListener("click", handleModeWorkspaceClick);
-  elements.modeWorkspace.addEventListener("input", handleModeWorkspaceInput);
-  elements.modeWorkspace.addEventListener("change", handleModeWorkspaceChange);
   elements.historyList.addEventListener("click", handleHistoryClick);
 
   document.addEventListener("keydown", handleKeyboard);
   document.addEventListener("pointerover", handlePointerHint);
   document.addEventListener("pointerout", handlePointerHintLeave);
 
-  document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("click", handleGlobalClick);
+  document.addEventListener("input", handleGlobalInput);
+  document.addEventListener("change", handleGlobalChange);
 }
 
-function handleDocumentClick(event) {
-  const advAction = event.target.closest("[data-adv-action]");
-  if (advAction && elements.modeWorkspace.contains(advAction)) {
-    handleAdvancedAction(advAction.dataset.advAction);
+function handleGlobalClick(event) {
+  const target = event.target;
+
+  if (elements.keypad && elements.keypad.contains(target)) {
+    const btn = target.closest("button[data-action]");
+    if (btn) {
+      const action = btn.dataset.action;
+      const shiftAction = btn.dataset.shiftAction;
+      if (state.shift && shiftAction) {
+        insertText(shiftAction);
+        state.shift = false;
+        persistShift();
+      } else {
+        handleAction(action);
+      }
+      if (action !== "shift") { state.shift = false; persistShift(); }
+      if (action !== "equals") { state.justEvaluated = false; }
+      if (state.expression === "") { state.preview = ""; }
+      persistExpression();
+      updateDisplay();
+      evaluatePreview();
+    }
     return;
   }
-  const advTab = event.target.closest("[data-adv-tab]");
-  if (advTab && elements.modeWorkspace.contains(advTab)) {
+
+  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+
+  handleWorkspaceClick(target);
+}
+
+function handleWorkspaceClick(target) {
+  const matrixOp = target.closest("[data-matrix-op]");
+  if (matrixOp) { try { applyMatrixOperation(matrixOp.dataset.matrixOp); } catch (e) { setHoverHint("矩阵运算出错: " + e.message); } return; }
+
+  const statsAction = target.closest("[data-stats-action]");
+  if (statsAction) { handleStatsAction(statsAction.dataset.statsAction, statsAction.dataset.index); return; }
+
+  const complexOp = target.closest("[data-complex-op]");
+  if (complexOp) { try { applyComplexOperation(complexOp.dataset.complexOp); } catch (e) { setHoverHint("复数运算出错: " + e.message); } return; }
+
+  const baseQuick = target.closest("[data-base-quick]");
+  if (baseQuick) {
+    state.base.source = baseQuick.dataset.baseQuick;
+    if (["BIN", "OCT", "DEC", "HEX"].includes(baseQuick.dataset.baseQuick)) state.base.target = baseQuick.dataset.baseQuick;
+    persistBase();
+    renderModeWorkspace();
+    return;
+  }
+
+  const baseConvert = target.closest('[data-mode-action="convert-base"]');
+  if (baseConvert) { convertAndPersistBase(); return; }
+
+  const advAction = target.closest("[data-adv-action]");
+  if (advAction) { handleAdvancedAction(advAction.dataset.advAction); return; }
+
+  const advTab = target.closest("[data-adv-tab]");
+  if (advTab) {
     state.advSubMode = advTab.dataset.advTab;
     renderModeWorkspace();
     return;
+  }
+}
+
+function handleGlobalInput(event) {
+  const target = event.target;
+  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+
+  switch (target.id) {
+    case "statsInput": state.stats.input = target.value; persistStats(); break;
+    case "baseInput": state.base.input = target.value; persistBase(); refreshBaseWorkspace(); break;
+    case "solveExpr": state.equation.solveExpression = target.value; persistEquation(); break;
+    case "solveInitial": state.equation.solveInitial = target.value; persistEquation(); break;
+    case "diffExpr": state.calculus.expression = target.value; persistCalculus(); break;
+    case "diffPoint": state.calculus.point = target.value; persistCalculus(); break;
+    case "intLower": state.calculus.lower = target.value; persistCalculus(); break;
+    case "intUpper": state.calculus.upper = target.value; persistCalculus(); break;
+    case "sigmaExpr": state.calculus.sigmaExpression = target.value; persistCalculus(); break;
+    case "sigmaLower": state.calculus.sigmaLower = target.value; persistCalculus(); break;
+    case "sigmaUpper": state.calculus.sigmaUpper = target.value; persistCalculus(); break;
+    case "propA": state.equation.proportion.a = target.value; persistEquation(); break;
+    case "propB": state.equation.proportion.b = target.value; persistEquation(); break;
+    case "propC": state.equation.proportion.c = target.value; persistEquation(); break;
+    case "propD": state.equation.proportion.d = target.value; persistEquation(); break;
+    case "v1x": if (state.vector.vectors.v1) state.vector.vectors.v1[0] = Number(target.value) || 0; persistVector(); break;
+    case "v1y": if (state.vector.vectors.v1) state.vector.vectors.v1[1] = Number(target.value) || 0; persistVector(); break;
+    case "v1z": if (state.vector.vectors.v1) state.vector.vectors.v1[2] = Number(target.value) || 0; persistVector(); break;
+    case "v2x": if (state.vector.vectors.v2) state.vector.vectors.v2[0] = Number(target.value) || 0; persistVector(); break;
+    case "v2y": if (state.vector.vectors.v2) state.vector.vectors.v2[1] = Number(target.value) || 0; persistVector(); break;
+    case "v2z": if (state.vector.vectors.v2) state.vector.vectors.v2[2] = Number(target.value) || 0; persistVector(); break;
+    case "logicA": state.logic.a = target.value; persistLogic(); break;
+    case "logicB": state.logic.b = target.value; persistLogic(); break;
+    case "tableFx": state.table.fx = target.value; persistTable(); break;
+    case "tableGx": state.table.gx = target.value; persistTable(); break;
+    case "tableStart": state.table.start = target.value; persistTable(); break;
+    case "tableEnd": state.table.end = target.value; persistTable(); break;
+    case "tableStep": state.table.step = target.value; persistTable(); break;
+    case "fractionInput": state.tools.fractionInput = target.value; persistTools(); break;
+    case "dmsInput": state.tools.dmsInput = target.value; persistTools(); break;
+    case "polarX": state.tools.polarX = target.value; persistTools(); break;
+    case "polarY": state.tools.polarY = target.value; persistTools(); break;
+    case "cartR": state.tools.cartR = target.value; persistTools(); break;
+    case "cartTheta": state.tools.cartTheta = target.value; persistTools(); break;
+    case "primeInput": state.tools.primeInput = target.value; persistTools(); break;
+    case "engInput": state.tools.engInput = target.value; persistTools(); break;
+    case "randMin": state.tools.randMin = target.value; persistTools(); break;
+    case "randMax": state.tools.randMax = target.value; persistTools(); break;
+    case "unitFrom": state.tools.unitFrom = target.value; persistTools(); break;
+    case "unitTo": state.tools.unitTo = target.value; persistTools(); break;
+    case "unitInput": state.tools.unitInput = target.value; persistTools(); break;
+  }
+
+  const matrixInput = target.closest("[data-matrix-input]");
+  if (matrixInput) { updateMatrixField(matrixInput); }
+}
+
+function handleGlobalChange(event) {
+  const target = event.target;
+  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+
+  switch (target.id) {
+    case "matrixSizeSelect": {
+      const n = Number(target.value);
+      if ([2, 3, 4].includes(n)) {
+        state.matrix.size = n;
+        state.matrix.matrices.a = resizeMatrix(state.matrix.matrices.a, n);
+        state.matrix.matrices.b = resizeMatrix(state.matrix.matrices.b, n);
+        state.matrix.matrices.c = resizeMatrix(state.matrix.matrices.c, n);
+        state.matrix.matrices.d = resizeMatrix(state.matrix.matrices.d, n);
+        persistMatrix();
+        renderModeWorkspace();
+      }
+      break;
+    }
+    case "linearSize": {
+      const n = Number(target.value);
+      if ([2, 3, 4].includes(n)) { state.equation.linearSize = n; state.equation.linearRows = defaultLinearRows(n); persistEquation(); }
+      break;
+    }
+    case "polyDegree": state.equation.polyDegree = Number(target.value); persistEquation(); break;
+    case "ineqSign": state.equation.inequalitySign = target.value; persistEquation(); break;
+    case "constKey": state.tools.constantKey = target.value; persistTools(); break;
+    case "unitGroup": state.tools.unitGroup = target.value; persistTools(); break;
+    case "baseSource": state.base.source = normalizeBaseName(target.value) ?? state.base.source; persistBase(); refreshBaseWorkspace(); break;
+    case "baseTarget": state.base.target = normalizeBaseName(target.value) ?? state.base.target; persistBase(); refreshBaseWorkspace(); break;
   }
 }
 
