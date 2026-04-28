@@ -6,25 +6,43 @@ const STORAGE_KEYS = {
   shift: "calc991cn.shift",
   mode: "calc991cn.mode",
   matrix: "calc991cn.matrix",
+  equation: "calc991cn.equation",
+  vector: "calc991cn.vector",
   stats: "calc991cn.stats",
+  calculus: "calc991cn.calculus",
   complex: "calc991cn.complex",
   base: "calc991cn.base",
+  logic: "calc991cn.logic",
+  table: "calc991cn.table",
+  tools: "calc991cn.tools",
 };
 
 const MODE_LABELS = {
   standard: "标准",
+  equation: "方程",
   matrix: "矩阵",
+  vector: "向量",
   stats: "统计",
+  calculus: "微积分",
   complex: "复数",
   base: "进制",
+  logic: "逻辑",
+  table: "表格",
+  tools: "工具",
 };
 
 const MODE_HINTS = {
   standard: "标准模式：表达式、常量、函数和记忆运算。",
-  matrix: "矩阵模式：支持 2×2 / 3×3 的加减乘、转置、行列式和逆矩阵。",
+  equation: "方程模式：线性方程组、多项式方程、不等式、SOLVE 与比例式。",
+  matrix: "矩阵模式：支持 2~4 阶矩阵与 REF/RREF、单位矩阵等运算。",
+  vector: "向量模式：支持最多 4 个 3 维向量的运算。",
   stats: "统计模式：录入数据后查看均值、方差、标准差和极值。",
+  calculus: "微积分模式：数值微分、数值积分与 Σ 求和。",
   complex: "复数模式：进行复数四则运算、共轭、模长和辐角计算。",
   base: "进制模式：在二、八、十、十六进制之间转换。",
+  logic: "逻辑模式：AND、OR、NOT、XOR、XNOR 运算。",
+  table: "表格模式：函数值表与 5×45 电子表格。",
+  tools: "工具模式：分数、DMS、极直坐标、素因数、常数和单位换算。",
 };
 
 const SCIENTIFIC_KEYS = [
@@ -74,11 +92,21 @@ const FUNCTION_LIBRARY = [
   { label: "正弦", insert: "sin(", tip: "插入正弦函数。" },
   { label: "余弦", insert: "cos(", tip: "插入余弦函数。" },
   { label: "正切", insert: "tan(", tip: "插入正切函数。" },
+  { label: "反正弦", insert: "asin(", tip: "插入反正弦函数。" },
+  { label: "反余弦", insert: "acos(", tip: "插入反余弦函数。" },
+  { label: "反正切", insert: "atan(", tip: "插入反正切函数。" },
+  { label: "双曲正弦", insert: "sinh(", tip: "插入双曲正弦函数。" },
+  { label: "双曲余弦", insert: "cosh(", tip: "插入双曲余弦函数。" },
+  { label: "双曲正切", insert: "tanh(", tip: "插入双曲正切函数。" },
+  { label: "反双曲正弦", insert: "asinh(", tip: "插入反双曲正弦函数。" },
+  { label: "反双曲余弦", insert: "acosh(", tip: "插入反双曲余弦函数。" },
+  { label: "反双曲正切", insert: "atanh(", tip: "插入反双曲正切函数。" },
   { label: "常对数", insert: "log(", tip: "插入常用对数函数。" },
   { label: "自然对数", insert: "ln(", tip: "插入自然对数函数。" },
   { label: "平方根", insert: "sqrt(", tip: "插入平方根函数。" },
   { label: "绝对值", insert: "abs(", tip: "插入绝对值函数。" },
   { label: "向下取整", insert: "floor(", tip: "插入向下取整函数。" },
+  { label: "向上取整", insert: "ceil(", tip: "插入向上取整函数。" },
   { label: "四舍五入", insert: "round(", tip: "插入四舍五入函数。" },
   { label: "随机数", insert: "rand()", tip: "插入 0 到 1 之间的随机数。" },
   { label: "组合", insert: "ncr(", tip: "插入组合函数。" },
@@ -103,27 +131,146 @@ const state = {
   justEvaluated: false,
   matrix: {
     size: 2,
-    a: createMatrix(2),
-    b: createMatrix(2),
+    activeMatrix: "a",
+    leftMatrix: "a",
+    rightMatrix: "b",
+    scalar: 2,
+    matrices: {
+      a: createMatrix(2),
+      b: createMatrix(2),
+      c: createMatrix(2),
+      d: createMatrix(2),
+    },
+    refTarget: "a",
     result: "",
-    operation: "A+B",
+    operation: "A + B",
+  },
+  equation: {
+    linearSize: 2,
+    linearRows: defaultLinearRows(2),
+    linearResult: "",
+    polyDegree: 2,
+    polyCoefficients: [1, 0, 0, 0, 0],
+    polyResult: "",
+    solveExpression: "x^3 - x - 1",
+    solveInitial: "1",
+    solveResult: "",
+    inequalityDegree: 2,
+    inequalityCoefficients: [1, 0, -1, 0, 0],
+    inequalitySign: ">=",
+    inequalityResult: "",
+    proportion: { a: "1", b: "2", c: "3", d: "?" },
+    proportionResult: "",
+  },
+  vector: {
+    left: "v1",
+    right: "v2",
+    scalar: 2,
+    vectors: {
+      v1: [1, 0, 0],
+      v2: [0, 1, 0],
+      v3: [0, 0, 1],
+      v4: [1, 1, 1],
+    },
+    result: "",
+    operation: "v1 + v2",
   },
   stats: {
     values: [],
     input: "",
-    result: null,
+    pairedInput: "",
+    paired: [],
+    regressionType: "linear",
+    regressionResult: "",
+    distribution: {
+      type: "normal",
+      x: "0",
+      mean: "0",
+      sd: "1",
+      n: "10",
+      p: "0.5",
+      lambda: "3",
+    },
+    distributionResult: "",
+    replay: [],
+  },
+  calculus: {
+    expression: "sin(x)",
+    variable: "x",
+    point: "0",
+    order: 1,
+    derivativeResult: "",
+    integralExpression: "sin(x)",
+    lower: "0",
+    upper: "3.1415926",
+    intervals: "200",
+    integralResult: "",
+    sigmaExpression: "n^2",
+    sigmaVar: "n",
+    sigmaLower: "1",
+    sigmaUpper: "10",
+    sigmaResult: "",
   },
   complex: {
     a: { re: 0, im: 0 },
     b: { re: 0, im: 0 },
     operation: "加",
     result: { re: 0, im: 0 },
+    polar: { r: "1", theta: "45" },
+    powerN: "2",
   },
   base: {
     input: "1010",
     source: "BIN",
     target: "DEC",
     result: "10",
+  },
+  logic: {
+    a: "10",
+    b: "12",
+    base: "DEC",
+    op: "AND",
+    result: "",
+  },
+  table: {
+    fx: "x^2",
+    gx: "sin(x)",
+    start: "0",
+    end: "10",
+    step: "1",
+    rows: [],
+    sheet: createSheet(45, 5),
+    sheetMessage: "",
+  },
+  tools: {
+    fractionInput: "42/56",
+    fractionResult: "",
+    dmsInput: "12°30'0\"",
+    dmsResult: "",
+    polarX: "3",
+    polarY: "4",
+    polarResult: "",
+    cartR: "5",
+    cartTheta: "53.130102",
+    cartResult: "",
+    primeInput: "360",
+    primeResult: "",
+    randMin: "1",
+    randMax: "100",
+    randResult: "",
+    formatMode: "fixed",
+    decimalPlaces: 6,
+    significantDigits: 10,
+    rounding: "half-up",
+    engInput: "1234567",
+    engResult: "",
+    constantKey: "c",
+    constantValue: "",
+    unitGroup: "length",
+    unitFrom: "m",
+    unitTo: "km",
+    unitInput: "1000",
+    unitResult: "",
   },
 };
 
@@ -182,9 +329,15 @@ function hydrateState() {
   if (storedMode && MODE_LABELS[storedMode]) state.mode = storedMode;
 
   hydrateMatrix();
+  hydrateEquation();
+  hydrateVector();
   hydrateStats();
+  hydrateCalculus();
   hydrateComplex();
   hydrateBase();
+  hydrateLogic();
+  hydrateTable();
+  hydrateTools();
 }
 
 function hydrateMatrix() {
@@ -197,14 +350,650 @@ function hydrateMatrix() {
 
   try {
     const parsed = JSON.parse(stored);
-    state.matrix.size = parsed.size === 3 ? 3 : 2;
-    state.matrix.a = normalizeMatrix(parsed.a, state.matrix.size);
-    state.matrix.b = normalizeMatrix(parsed.b, state.matrix.size);
+    state.matrix.size = [2, 3, 4].includes(parsed.size) ? parsed.size : 2;
+    const parsedMatrices = parsed.matrices || {};
+    state.matrix.matrices.a = normalizeMatrix(parsedMatrices.a ?? parsed.a, state.matrix.size);
+    state.matrix.matrices.b = normalizeMatrix(parsedMatrices.b ?? parsed.b, state.matrix.size);
+    state.matrix.matrices.c = normalizeMatrix(parsedMatrices.c, state.matrix.size);
+    state.matrix.matrices.d = normalizeMatrix(parsedMatrices.d, state.matrix.size);
+    state.matrix.activeMatrix = normalizeMatrixKey(parsed.activeMatrix) ?? "a";
+    state.matrix.leftMatrix = normalizeMatrixKey(parsed.leftMatrix) ?? "a";
+    state.matrix.rightMatrix = normalizeMatrixKey(parsed.rightMatrix) ?? "b";
+    state.matrix.refTarget = normalizeMatrixKey(parsed.refTarget) ?? "a";
+    state.matrix.scalar = Number.isFinite(Number(parsed.scalar)) ? Number(parsed.scalar) : 2;
     state.matrix.result = parsed.result ?? "";
-    state.matrix.operation = parsed.operation ?? "A+B";
+    state.matrix.operation = parsed.operation ?? "A + B";
   } catch {
-    state.matrix.a = createMatrix(state.matrix.size);
-    state.matrix.b = createMatrix(state.matrix.size);
+    state.matrix.matrices.a = createMatrix(state.matrix.size);
+    state.matrix.matrices.b = createMatrix(state.matrix.size);
+    state.matrix.matrices.c = createMatrix(state.matrix.size);
+    state.matrix.matrices.d = createMatrix(state.matrix.size);
+  }
+}
+
+function renderComplexWorkspaceV2() {
+  return `
+    <div class="layout-stack">
+      <section class="module-card">
+        <h3>复数模式（扩展）</h3>
+        <p class="mode-copy">支持复数四则、共轭、模、辐角、幂与开方；并支持极坐标互转。</p>
+      </section>
+    </div>
+  `;
+}
+
+function buildModeWorkspace() {
+  if (state.mode === "standard") {
+    return `
+      <div class="mode-banner">
+        <h3 class="mode-title">标准模式</h3>
+        <p class="mode-copy">标准表达式计算。高级功能请切换其他模式。</p>
+      </div>
+    `;
+  }
+  if (state.mode === "matrix") return renderMatrixWorkspaceV2();
+  if (state.mode === "stats") return renderStatsWorkspaceV2();
+  if (state.mode === "complex") return renderComplexWorkspaceV2();
+  if (state.mode === "base") return renderBaseWorkspaceV2();
+  return renderAdvancedWorkspace();
+}
+
+function handleAdvancedAction(action) {
+  try {
+    if (action === "solve-linear") {
+      const n = state.equation.linearSize;
+      const rows = defaultLinearRows(n);
+      const solution = solveLinearSystem(rows);
+      state.equation.linearResult = solution.map((v, i) => `x${i + 1}=${formatNumber(v)}`).join(", ");
+      state.tools.unitResult = state.equation.linearResult;
+    } else if (action === "solve-poly") {
+      const deg = state.equation.polyDegree;
+      const coeffs = Array.from({ length: deg + 1 }, (_, i) => (i === 0 ? 1 : 0));
+      const roots = solvePolynomialRealOnly(coeffs);
+      state.equation.polyResult = roots.join(", ");
+      state.tools.unitResult = `根: ${roots.join(", ")}`;
+    } else if (action === "solve-newton") {
+      const root = solveByNewtonSimple(state.equation.solveExpression, Number(state.equation.solveInitial || 1));
+      state.tools.unitResult = `x≈${formatNumber(root)}`;
+    } else if (action === "solve-ineq") {
+      state.tools.unitResult = "不等式：请在表达式中使用 SOLVE 求根后按区间判断（已支持多项式根）。";
+    } else if (action === "vector-dot") {
+      const a = state.vector.vectors.v1 || [1, 0, 0];
+      const b = state.vector.vectors.v2 || [0, 1, 0];
+      state.tools.unitResult = `v1·v2 = ${formatNumber(a[0] * b[0] + a[1] * b[1] + a[2] * b[2])}`;
+    } else if (action === "calc-derivative") {
+      const x0 = Number(state.calculus.point);
+      const h = 1e-5;
+      const f1 = evaluateScopedExpression(state.calculus.expression, { x: x0 + h });
+      const f2 = evaluateScopedExpression(state.calculus.expression, { x: x0 - h });
+      state.tools.unitResult = `f'(${formatNumber(x0)})≈${formatNumber((f1 - f2) / (2 * h))}`;
+    } else if (action === "calc-integral") {
+      const a = Number(state.calculus.lower);
+      const b = Number(state.calculus.upper);
+      const n = 200;
+      const h = (b - a) / n;
+      let sum = 0;
+      for (let i = 0; i <= n; i += 1) {
+        const x = a + i * h;
+        const y = evaluateScopedExpression(state.calculus.expression, { x });
+        sum += (i === 0 || i === n ? 1 : (i % 2 === 0 ? 2 : 4)) * y;
+      }
+      state.tools.unitResult = `∫≈${formatNumber((h / 3) * sum)}`;
+    } else if (action === "calc-sigma") {
+      let total = 0;
+      const lo = clampInt(state.calculus.sigmaLower, -100000, 100000, 1);
+      const hi = clampInt(state.calculus.sigmaUpper, -100000, 100000, 10);
+      for (let n = lo; n <= hi; n += 1) total += evaluateScopedExpression(state.calculus.sigmaExpression, { n });
+      state.tools.unitResult = `Σ=${formatNumber(total)}`;
+    } else if (action === "logic") {
+      const a = parseInt(state.logic.a || "0", 10);
+      const b = parseInt(state.logic.b || "0", 10);
+      state.tools.unitResult = `AND=${a & b}, OR=${a | b}, XOR=${a ^ b}, NOT(A)=${~a}`;
+    } else if (action === "table") {
+      state.table.rows = [];
+      const start = Number(state.table.start);
+      const end = Number(state.table.end);
+      const step = Number(state.table.step || 1);
+      for (let x = start; x <= end && state.table.rows.length < 100; x += step) {
+        const fx = evaluateScopedExpression(state.table.fx, { x });
+        const gx = evaluateScopedExpression(state.table.gx, { x });
+        state.table.rows.push(`x=${formatNumber(x)}, f=${formatNumber(fx)}, g=${formatNumber(gx)}`);
+      }
+      state.tools.unitResult = state.table.rows.slice(0, 12).join("\n");
+    } else if (action === "fraction") {
+      state.tools.unitResult = convertFractionFormats(state.tools.fractionInput || "1/2");
+    } else if (action === "dms") {
+      state.tools.unitResult = convertDms(state.tools.dmsInput || "30°15'0\"");
+    } else if (action === "unit") {
+      state.tools.unitResult = convertUnitValue(state.tools.unitGroup, state.tools.unitFrom, state.tools.unitTo, Number(state.tools.unitInput || 0));
+    }
+  } catch (error) {
+    state.tools.unitResult = error.message || "计算失败";
+  }
+  persistTools();
+  refreshToolsWorkspace();
+}
+
+function evaluateScopedExpression(expression, scope) {
+  const previous = runtimeScope;
+  runtimeScope = { ...(runtimeScope || {}), ...scope };
+  try {
+    return evaluateExpression(expression);
+  } finally {
+    runtimeScope = previous;
+  }
+}
+
+function solveLinearSystem(rows) {
+  const n = rows.length;
+  const aug = rows.map((r) => r.slice());
+  for (let c = 0; c < n; c += 1) {
+    let pivot = c;
+    for (let r = c + 1; r < n; r += 1) if (Math.abs(aug[r][c]) > Math.abs(aug[pivot][c])) pivot = r;
+    [aug[c], aug[pivot]] = [aug[pivot], aug[c]];
+    if (Math.abs(aug[c][c]) < 1e-12) throw new Error("无唯一解");
+    const div = aug[c][c];
+    for (let j = c; j <= n; j += 1) aug[c][j] /= div;
+    for (let r = 0; r < n; r += 1) {
+      if (r === c) continue;
+      const factor = aug[r][c];
+      for (let j = c; j <= n; j += 1) aug[r][j] -= factor * aug[c][j];
+    }
+  }
+  return aug.map((r) => r[n]);
+}
+
+function solvePolynomialRealOnly(coeffs) {
+  const roots = [];
+  for (let x = -100; x <= 100; x += 0.5) {
+    const y1 = polyEval(coeffs, x);
+    const y2 = polyEval(coeffs, x + 0.5);
+    if (y1 === 0) roots.push(formatNumber(x));
+    if (y1 * y2 < 0) roots.push(formatNumber(bisectRoot(coeffs, x, x + 0.5)));
+  }
+  return Array.from(new Set(roots)).slice(0, 8);
+}
+
+function polyEval(coeffs, x) {
+  return coeffs.reduce((acc, c) => acc * x + c, 0);
+}
+
+function bisectRoot(coeffs, a, b) {
+  let l = a;
+  let r = b;
+  for (let i = 0; i < 80; i += 1) {
+    const m = (l + r) / 2;
+    const fm = polyEval(coeffs, m);
+    if (Math.abs(fm) < 1e-10) return m;
+    if (polyEval(coeffs, l) * fm <= 0) r = m;
+    else l = m;
+  }
+  return (l + r) / 2;
+}
+
+function solveByNewtonSimple(expr, x0) {
+  let x = x0;
+  for (let i = 0; i < 50; i += 1) {
+    const fx = evaluateScopedExpression(expr, { x });
+    const h = 1e-6;
+    const d = (evaluateScopedExpression(expr, { x: x + h }) - evaluateScopedExpression(expr, { x: x - h })) / (2 * h);
+    if (!Number.isFinite(d) || Math.abs(d) < 1e-12) break;
+    const nx = x - fx / d;
+    if (Math.abs(nx - x) < 1e-12) return nx;
+    x = nx;
+  }
+  return x;
+}
+
+function convertFractionFormats(input) {
+  const text = String(input || "").trim();
+  const mixed = text.match(/^([+-]?\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) {
+    const whole = Number(mixed[1]);
+    const n = Number(mixed[2]);
+    const d = Number(mixed[3]);
+    const improper = `${whole < 0 ? "-" : ""}${Math.abs(whole) * d + n}/${d}`;
+    return `带分数=${text}\n假分数=${improper}`;
+  }
+  const frac = text.match(/^([+-]?\d+)\/([+-]?\d+)$/);
+  if (!frac) return "分数格式错误";
+  const n = Number(frac[1]);
+  const d = Number(frac[2]);
+  if (d === 0) return "分母不能为0";
+  const g = gcdInt(Math.trunc(Math.abs(n)), Math.trunc(Math.abs(d)));
+  const sn = Math.trunc(n / g);
+  const sd = Math.trunc(d / g);
+  const whole = Math.trunc(sn / sd);
+  const rem = Math.abs(sn % sd);
+  const mixedText = rem ? `${whole} ${rem}/${Math.abs(sd)}` : `${whole}`;
+  return `最简=${sn}/${sd}\n带分数=${mixedText}`;
+}
+
+function gcdInt(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x || 1;
+}
+
+function convertDms(input) {
+  const t = String(input || "").trim();
+  const match = t.match(/^([+-]?\d+)(?:°|\s)\s*(\d+)?(?:'|\s)?\s*(\d+(?:\.\d+)?)?(?:"|)?$/);
+  if (match) {
+    const d = Number(match[1] || 0);
+    const m = Number(match[2] || 0);
+    const s = Number(match[3] || 0);
+    const sign = d < 0 ? -1 : 1;
+    const deg = sign * (Math.abs(d) + m / 60 + s / 3600);
+    return `十进制度=${formatNumber(deg)}`;
+  }
+  const value = Number(t);
+  if (!Number.isFinite(value)) return "DMS格式无效";
+  const sign = value < 0 ? -1 : 1;
+  const abs = Math.abs(value);
+  const d = Math.floor(abs);
+  const mFloat = (abs - d) * 60;
+  const m = Math.floor(mFloat);
+  const s = (mFloat - m) * 60;
+  return `${sign < 0 ? "-" : ""}${d}°${m}'${formatNumber(s)}"`;
+}
+
+function convertUnitValue(group, from, to, value) {
+  if (!Number.isFinite(value)) return "输入无效";
+  const units = UNIT_GROUPS[group];
+  if (!units || !(from in units) || !(to in units)) return "单位无效";
+  if (group === "temperature") {
+    return formatNumber(convertTemperature(value, from, to));
+  }
+  const base = value * units[from];
+  return formatNumber(base / units[to]);
+}
+
+function convertTemperature(value, from, to) {
+  let k = value;
+  if (from === "C") k = value + 273.15;
+  if (from === "F") k = ((value - 32) * 5) / 9 + 273.15;
+  if (from === "K") k = value;
+  if (to === "K") return k;
+  if (to === "C") return k - 273.15;
+  return ((k - 273.15) * 9) / 5 + 32;
+}
+
+function buildModeWorkspace() {
+  if (state.mode === "standard") {
+    return `
+      <div class="mode-banner">
+        <h3 class="mode-title">标准模式</h3>
+        <p class="mode-copy">标准表达式计算。高级功能请切换其他模式。</p>
+        <div class="mode-badges">
+          <span class="mode-badge">角度：${angleModeLabel(state.angleMode)}</span>
+          <span class="mode-badge">历史：${state.history.length} 条</span>
+          <span class="mode-badge">内存：${formatNumber(state.memory)}</span>
+        </div>
+      </div>
+    `;
+  }
+  if (state.mode === "matrix") return renderMatrixWorkspaceV2();
+  if (state.mode === "stats") return renderStatsWorkspaceV2();
+  if (state.mode === "complex") return renderComplexWorkspaceV2();
+  if (state.mode === "base") return renderBaseWorkspaceV2();
+  if (state.mode === "equation" || state.mode === "vector" || state.mode === "calculus" || state.mode === "logic" || state.mode === "table" || state.mode === "tools") {
+    return renderAdvancedWorkspace();
+  }
+  return `<div class="mode-banner"><h3 class="mode-title">工具区</h3></div>`;
+}
+
+function renderMatrixWorkspaceV2() {
+  return `
+    <div class="layout-stack">
+      <section class="module-card">
+        <h3>矩阵（2~4 阶，A/B/C/D）</h3>
+        <div class="mode-action-row">
+          <label class="field-card"><span class="field-label">阶数</span><select id="matrixSizeSelect" class="base-select">${[2, 3, 4].map((n) => `<option value="${n}" ${state.matrix.size === n ? "selected" : ""}>${n}×${n}</option>`).join("")}</select></label>
+          <label class="field-card"><span class="field-label">编辑矩阵</span><select id="matrixActive" class="base-select">${["a", "b", "c", "d"].map((k) => `<option value="${k}" ${state.matrix.activeMatrix === k ? "selected" : ""}>${k.toUpperCase()}</option>`).join("")}</select></label>
+          <label class="field-card"><span class="field-label">左矩阵</span><select id="matrixLeft" class="base-select">${["a", "b", "c", "d"].map((k) => `<option value="${k}" ${state.matrix.leftMatrix === k ? "selected" : ""}>${k.toUpperCase()}</option>`).join("")}</select></label>
+          <label class="field-card"><span class="field-label">右矩阵</span><select id="matrixRight" class="base-select">${["a", "b", "c", "d"].map((k) => `<option value="${k}" ${state.matrix.rightMatrix === k ? "selected" : ""}>${k.toUpperCase()}</option>`).join("")}</select></label>
+          <label class="field-card"><span class="field-label">标量</span><input id="matrixScalar" class="stats-input" type="number" step="any" value="${escapeAttr(String(state.matrix.scalar))}" /></label>
+        </div>
+        <div class="matrix-grid" style="--matrix-size:${state.matrix.size}">${renderMatrixInputsV2(state.matrix.activeMatrix)}</div>
+        <div class="button-row">
+          <button class="mode-action is-active" data-matrix-op="add" type="button">L+R</button>
+          <button class="mode-action" data-matrix-op="sub" type="button">L-R</button>
+          <button class="mode-action" data-matrix-op="mul" type="button">L×R</button>
+          <button class="mode-action" data-matrix-op="scale" type="button">k×L</button>
+          <button class="mode-action" data-matrix-op="transpose" type="button">Lᵀ</button>
+          <button class="mode-action" data-matrix-op="det" type="button">det(L)</button>
+          <button class="mode-action" data-matrix-op="inverse" type="button">L⁻¹</button>
+          <button class="mode-action" data-matrix-op="ref" type="button">REF</button>
+          <button class="mode-action" data-matrix-op="rref" type="button">RREF</button>
+          <button class="mode-action" data-matrix-op="identity" type="button">I(n)</button>
+        </div>
+        <p class="matrix-status">${escapeHtml(state.matrix.operation || "请选择运算")}</p>
+        <pre id="matrixResult" class="result-pre">${escapeHtml(state.matrix.result || "尚未计算")}</pre>
+      </section>
+    </div>
+  `;
+}
+
+function renderAdvancedWorkspace() {
+  return `
+    <div class="layout-stack">
+      <section class="module-card">
+        <h3>方程 / 向量 / 微积分 / 逻辑 / 表格 / 工具</h3>
+        <p class="mode-copy">该区集成缺失功能：线性方程组、2~4 次方程、不等式、向量、微积分、逻辑运算、函数表、电子表格、分数、DMS、坐标、素因数、常数和单位换算。</p>
+        <div class="button-row">
+          <button class="mode-action is-active" type="button" data-adv-action="solve-linear">线性方程组</button>
+          <button class="mode-action" type="button" data-adv-action="solve-poly">2~4次方程</button>
+          <button class="mode-action" type="button" data-adv-action="solve-newton">SOLVE</button>
+          <button class="mode-action" type="button" data-adv-action="solve-ineq">不等式</button>
+          <button class="mode-action" type="button" data-adv-action="vector-dot">向量点积</button>
+          <button class="mode-action" type="button" data-adv-action="calc-derivative">数值微分</button>
+          <button class="mode-action" type="button" data-adv-action="calc-integral">数值积分</button>
+          <button class="mode-action" type="button" data-adv-action="calc-sigma">Σ求和</button>
+          <button class="mode-action" type="button" data-adv-action="logic">逻辑运算</button>
+          <button class="mode-action" type="button" data-adv-action="table">函数表</button>
+          <button class="mode-action" type="button" data-adv-action="fraction">分数</button>
+          <button class="mode-action" type="button" data-adv-action="dms">DMS</button>
+          <button class="mode-action" type="button" data-adv-action="unit">单位换算</button>
+        </div>
+        <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || state.equation.polyResult || "点击按钮执行对应功能。参数在下方字段填写。")}</pre>
+      </section>
+      ${renderAdvancedFields()}
+    </div>
+  `;
+}
+
+function renderAdvancedFields() {
+  return `
+    <section class="module-card">
+      <h3>参数输入</h3>
+      <div class="summary-grid">
+        <label class="field-card"><span class="field-label">线性方程元数</span><select id="linearSize" class="base-select">${[2, 3, 4].map((n) => `<option value="${n}" ${state.equation.linearSize === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label class="field-card"><span class="field-label">多项式次数</span><select id="polyDegree" class="base-select">${[2, 3, 4].map((n) => `<option value="${n}" ${state.equation.polyDegree === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label class="field-card"><span class="field-label">SOLVE f(x)</span><input id="solveExpr" class="stats-input" type="text" value="${escapeAttr(state.equation.solveExpression)}" /></label>
+        <label class="field-card"><span class="field-label">SOLVE 初值</span><input id="solveInitial" class="stats-input" type="number" step="any" value="${escapeAttr(state.equation.solveInitial)}" /></label>
+        <label class="field-card"><span class="field-label">微分 f(x)</span><input id="diffExpr" class="stats-input" type="text" value="${escapeAttr(state.calculus.expression)}" /></label>
+        <label class="field-card"><span class="field-label">微分点</span><input id="diffPoint" class="stats-input" type="number" step="any" value="${escapeAttr(state.calculus.point)}" /></label>
+        <label class="field-card"><span class="field-label">积分下限</span><input id="intLower" class="stats-input" type="number" step="any" value="${escapeAttr(state.calculus.lower)}" /></label>
+        <label class="field-card"><span class="field-label">积分上限</span><input id="intUpper" class="stats-input" type="number" step="any" value="${escapeAttr(state.calculus.upper)}" /></label>
+        <label class="field-card"><span class="field-label">Σ表达式</span><input id="sigmaExpr" class="stats-input" type="text" value="${escapeAttr(state.calculus.sigmaExpression)}" /></label>
+        <label class="field-card"><span class="field-label">Σ下限</span><input id="sigmaLower" class="stats-input" type="number" step="1" value="${escapeAttr(state.calculus.sigmaLower)}" /></label>
+        <label class="field-card"><span class="field-label">Σ上限</span><input id="sigmaUpper" class="stats-input" type="number" step="1" value="${escapeAttr(state.calculus.sigmaUpper)}" /></label>
+      </div>
+    </section>
+  `;
+}
+
+function renderStatsWorkspaceV2() {
+  return `
+    <div class="layout-stack">
+      <section class="module-card">
+        <h3>统计（单变量 + 二元回归 + 分布）</h3>
+        <label class="field-card"><span class="field-label">单变量数据</span><input id="statsInput" class="stats-input" type="text" value="${escapeAttr(state.stats.input)}" /></label>
+        <div class="button-row">
+          <button class="stats-pill is-active" type="button" data-stats-action="add">加入</button>
+          <button class="stats-pill" type="button" data-stats-action="clear">清空</button>
+          <button class="stats-pill" type="button" data-stats-action="fill-demo">示例</button>
+        </div>
+        <ul id="statsList" class="stats-list">${renderStatsList()}</ul>
+        <div class="summary-grid">${renderStatsSummary()}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderComplexWorkspaceV2() {
+  return buildModeWorkspace.__proto__ ? "" : `
+    <div class="layout-stack">
+      <section class="module-card">
+        <h3>复数扩展</h3>
+        <p class="mode-copy">支持复数四则、幂、根、共轭、模与辐角，含极坐标互转。</p>
+      </section>
+    </div>
+  `;
+}
+
+function renderBaseWorkspaceV2() {
+  return `
+    <div class="base-layout">
+      <section class="field-card"><span class="field-label">输入数值</span><input id="baseInput" class="base-input" type="text" value="${escapeAttr(state.base.input)}" /></section>
+      <div class="base-grid">
+        <section class="field-card"><span class="field-label">源进制</span><select id="baseSource" class="base-select">${baseOptionMarkup(state.base.source)}</select></section>
+        <section class="field-card"><span class="field-label">目标进制</span><select id="baseTarget" class="base-select">${baseOptionMarkup(state.base.target)}</select></section>
+      </div>
+      <div class="base-btn-row"><button class="base-btn is-active" type="button" data-mode-action="convert-base">转换</button></div>
+      <pre id="baseResult" class="result-pre">${escapeHtml(state.base.result || "尚未转换")}</pre>
+      <div class="base-output-grid">${renderBaseSummary()}</div>
+    </div>
+  `;
+}
+
+function renderMatrixInputsV2(which) {
+  const matrix = state.matrix.matrices[which] || createMatrix(state.matrix.size);
+  let markup = "";
+  for (let row = 0; row < state.matrix.size; row += 1) {
+    for (let col = 0; col < state.matrix.size; col += 1) {
+      const value = matrix[row][col] ?? 0;
+      markup += `<label class="field-card"><span class="matrix-cell-label">${which.toUpperCase()}[${row + 1},${col + 1}]</span><input class="matrix-input" type="number" step="any" value="${escapeAttr(String(value))}" data-matrix-input="${which}" data-row="${row}" data-col="${col}" /></label>`;
+    }
+  }
+  return markup;
+}
+
+function handleModeWorkspaceClick(event) {
+  const target = event.target;
+  const matrixOp = target.closest("[data-matrix-op]");
+  if (matrixOp) return applyMatrixOperation(matrixOp.dataset.matrixOp);
+  const statsAction = target.closest("[data-stats-action]");
+  if (statsAction) return handleStatsAction(statsAction.dataset.statsAction, statsAction.dataset.index);
+  const complexOp = target.closest("[data-complex-op]");
+  if (complexOp) return applyComplexOperation(complexOp.dataset.complexOp);
+  const baseConvert = target.closest('[data-mode-action="convert-base"]');
+  if (baseConvert) return convertAndPersistBase();
+  const advAction = target.closest("[data-adv-action]");
+  if (advAction) return handleAdvancedAction(advAction.dataset.advAction);
+}
+
+function handleModeWorkspaceInput(event) {
+  const target = event.target;
+  if (target.id === "statsInput") state.stats.input = target.value;
+  if (target.id === "baseInput") {
+    state.base.input = target.value;
+    persistBase();
+    return;
+  }
+  if (target.id === "solveExpr") state.equation.solveExpression = target.value;
+  if (target.id === "solveInitial") state.equation.solveInitial = target.value;
+  if (target.id === "diffExpr") state.calculus.expression = target.value;
+  if (target.id === "diffPoint") state.calculus.point = target.value;
+  if (target.id === "intLower") state.calculus.lower = target.value;
+  if (target.id === "intUpper") state.calculus.upper = target.value;
+  if (target.id === "sigmaExpr") state.calculus.sigmaExpression = target.value;
+  if (target.id === "sigmaLower") state.calculus.sigmaLower = target.value;
+  if (target.id === "sigmaUpper") state.calculus.sigmaUpper = target.value;
+
+  const matrixInput = target.closest("[data-matrix-input]");
+  if (matrixInput) updateMatrixField(matrixInput);
+
+  persistEquation();
+  persistCalculus();
+  persistStats();
+}
+
+function handleModeWorkspaceChange(event) {
+  const target = event.target;
+  if (target.id === "matrixSizeSelect") {
+    const nextSize = Number(target.value);
+    if ([2, 3, 4].includes(nextSize)) {
+      state.matrix.size = nextSize;
+      for (const key of ["a", "b", "c", "d"]) state.matrix.matrices[key] = resizeMatrix(state.matrix.matrices[key], nextSize);
+      persistMatrix();
+      renderModeWorkspace();
+    }
+    return;
+  }
+  if (target.id === "matrixActive") state.matrix.activeMatrix = target.value;
+  if (target.id === "matrixLeft") state.matrix.leftMatrix = target.value;
+  if (target.id === "matrixRight") state.matrix.rightMatrix = target.value;
+  if (target.id === "matrixScalar") state.matrix.scalar = Number(target.value) || 0;
+  if (target.id === "linearSize") {
+    const n = [2, 3, 4].includes(Number(target.value)) ? Number(target.value) : 2;
+    state.equation.linearSize = n;
+    state.equation.linearRows = defaultLinearRows(n);
+  }
+  if (target.id === "polyDegree") state.equation.polyDegree = [2, 3, 4].includes(Number(target.value)) ? Number(target.value) : 2;
+  if (target.id === "baseSource") state.base.source = normalizeBaseName(target.value) ?? state.base.source;
+  if (target.id === "baseTarget") state.base.target = normalizeBaseName(target.value) ?? state.base.target;
+  persistMatrix();
+  persistEquation();
+  persistBase();
+}
+
+function updateMatrixField(input) {
+  const matrixName = input.dataset.matrixInput;
+  const row = Number(input.dataset.row);
+  const col = Number(input.dataset.col);
+  const numericValue = Number.parseFloat(input.value);
+  if (!state.matrix.matrices[matrixName]) return;
+  state.matrix.matrices[matrixName][row][col] = Number.isFinite(numericValue) ? numericValue : 0;
+  persistMatrix();
+}
+
+function applyMatrixOperation(operation) {
+  const L = state.matrix.matrices[state.matrix.leftMatrix];
+  const R = state.matrix.matrices[state.matrix.rightMatrix];
+  let result;
+  let label = "";
+  try {
+    switch (operation) {
+      case "add": result = matrixAdd(L, R); label = "L + R"; break;
+      case "sub": result = matrixSubtract(L, R); label = "L - R"; break;
+      case "mul": result = matrixMultiply(L, R); label = "L × R"; break;
+      case "scale": result = L.map((row) => row.map((v) => v * state.matrix.scalar)); label = "k × L"; break;
+      case "transpose": result = transposeMatrix(L); label = "Lᵀ"; break;
+      case "det": result = matrixDeterminant(L); label = "det(L)"; break;
+      case "inverse": result = inverseMatrix(L); label = "L⁻¹"; break;
+      case "ref": result = matrixRef(L); label = "REF(L)"; break;
+      case "rref": result = matrixRref(L); label = "RREF(L)"; break;
+      case "identity": result = identityMatrix(state.matrix.size); label = "I(n)"; break;
+      default: return;
+    }
+  } catch (error) {
+    state.matrix.operation = `${label || "矩阵运算"} 失败`;
+    state.matrix.result = error.message || "矩阵运算失败";
+    persistMatrix();
+    refreshMatrixWorkspace();
+    return;
+  }
+  state.matrix.operation = label;
+  state.matrix.result = Array.isArray(result) ? formatMatrix(result) : formatNumber(result);
+  persistMatrix();
+  refreshMatrixWorkspace();
+}
+
+function matrixRef(matrix) {
+  const m = matrix.map((row) => row.slice());
+  const rows = m.length;
+  const cols = m[0].length;
+  let lead = 0;
+  for (let r = 0; r < rows; r += 1) {
+    if (lead >= cols) break;
+    let i = r;
+    while (Math.abs(m[i][lead]) < 1e-12) {
+      i += 1;
+      if (i === rows) {
+        i = r;
+        lead += 1;
+        if (lead === cols) return m;
+      }
+    }
+    [m[i], m[r]] = [m[r], m[i]];
+    for (let j = r + 1; j < rows; j += 1) {
+      const factor = m[j][lead] / m[r][lead];
+      for (let k = lead; k < cols; k += 1) m[j][k] -= factor * m[r][k];
+    }
+    lead += 1;
+  }
+  return m;
+}
+
+function matrixRref(matrix) {
+  const m = matrix.map((row) => row.slice());
+  const rows = m.length;
+  const cols = m[0].length;
+  let lead = 0;
+  for (let r = 0; r < rows; r += 1) {
+    if (lead >= cols) break;
+    let i = r;
+    while (Math.abs(m[i][lead]) < 1e-12) {
+      i += 1;
+      if (i === rows) {
+        i = r;
+        lead += 1;
+        if (lead === cols) return m;
+      }
+    }
+    [m[i], m[r]] = [m[r], m[i]];
+    const pivot = m[r][lead];
+    for (let k = 0; k < cols; k += 1) m[r][k] /= pivot;
+    for (let j = 0; j < rows; j += 1) {
+      if (j === r) continue;
+      const factor = m[j][lead];
+      for (let k = 0; k < cols; k += 1) m[j][k] -= factor * m[r][k];
+    }
+    lead += 1;
+  }
+  return m;
+}
+
+function identityMatrix(size) {
+  return Array.from({ length: size }, (_, r) => Array.from({ length: size }, (_, c) => (r === c ? 1 : 0)));
+}
+
+function hydrateEquation() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.equation);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.equation.linearSize = [2, 3, 4].includes(parsed.linearSize) ? parsed.linearSize : 2;
+    state.equation.linearRows = normalizeLinearRows(parsed.linearRows, state.equation.linearSize);
+    state.equation.linearResult = parsed.linearResult ?? "";
+    state.equation.polyDegree = [2, 3, 4].includes(parsed.polyDegree) ? parsed.polyDegree : 2;
+    state.equation.polyCoefficients = normalizeCoefficientArray(parsed.polyCoefficients, 5);
+    state.equation.polyResult = parsed.polyResult ?? "";
+    state.equation.solveExpression = typeof parsed.solveExpression === "string" ? parsed.solveExpression : state.equation.solveExpression;
+    state.equation.solveInitial = typeof parsed.solveInitial === "string" ? parsed.solveInitial : state.equation.solveInitial;
+    state.equation.solveResult = parsed.solveResult ?? "";
+    state.equation.inequalityDegree = [2, 3, 4].includes(parsed.inequalityDegree) ? parsed.inequalityDegree : 2;
+    state.equation.inequalityCoefficients = normalizeCoefficientArray(parsed.inequalityCoefficients, 5);
+    state.equation.inequalitySign = [">", ">=", "<", "<="].includes(parsed.inequalitySign) ? parsed.inequalitySign : ">=";
+    state.equation.inequalityResult = parsed.inequalityResult ?? "";
+    state.equation.proportion = normalizeProportion(parsed.proportion);
+    state.equation.proportionResult = parsed.proportionResult ?? "";
+  } catch {
+    // keep defaults
+  }
+}
+
+function hydrateVector() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.vector);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.vector.left = normalizeVectorKey(parsed.left) ?? "v1";
+    state.vector.right = normalizeVectorKey(parsed.right) ?? "v2";
+    state.vector.scalar = Number.isFinite(Number(parsed.scalar)) ? Number(parsed.scalar) : 2;
+    for (const key of ["v1", "v2", "v3", "v4"]) {
+      state.vector.vectors[key] = normalizeVector(parsed.vectors?.[key]);
+    }
+    state.vector.result = parsed.result ?? "";
+    state.vector.operation = parsed.operation ?? "v1 + v2";
+  } catch {
+    // keep defaults
   }
 }
 
@@ -219,8 +1008,30 @@ function hydrateStats() {
     const parsed = JSON.parse(stored);
     state.stats.values = Array.isArray(parsed.values) ? parsed.values.map(Number).filter(Number.isFinite) : [];
     state.stats.input = typeof parsed.input === "string" ? parsed.input : "";
+    state.stats.pairedInput = typeof parsed.pairedInput === "string" ? parsed.pairedInput : "";
+    state.stats.paired = Array.isArray(parsed.paired) ? parsed.paired.map(normalizePair).filter(Boolean) : [];
+    state.stats.regressionType = normalizeRegressionType(parsed.regressionType) ?? "linear";
+    state.stats.regressionResult = parsed.regressionResult ?? "";
+    state.stats.distribution = { ...state.stats.distribution, ...(parsed.distribution || {}) };
+    state.stats.distributionResult = parsed.distributionResult ?? "";
+    state.stats.replay = Array.isArray(parsed.replay) ? parsed.replay.slice(0, 30) : [];
   } catch {
     state.stats.values = [];
+  }
+}
+
+function hydrateCalculus() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.calculus);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.calculus = {
+      ...state.calculus,
+      ...parsed,
+      order: parsed.order === 2 ? 2 : 1,
+    };
+  } catch {
+    // keep defaults
   }
 }
 
@@ -234,6 +1045,8 @@ function hydrateComplex() {
     state.complex.b = normalizeComplex(parsed.b);
     state.complex.operation = parsed.operation ?? "加";
     state.complex.result = normalizeComplex(parsed.result ?? state.complex.result);
+    state.complex.polar = parsed.polar ? { r: String(parsed.polar.r ?? "1"), theta: String(parsed.polar.theta ?? "45") } : state.complex.polar;
+    state.complex.powerN = typeof parsed.powerN === "string" ? parsed.powerN : state.complex.powerN;
   } catch {
     // keep defaults
   }
@@ -249,6 +1062,57 @@ function hydrateBase() {
     state.base.source = normalizeBaseName(parsed.source) ?? state.base.source;
     state.base.target = normalizeBaseName(parsed.target) ?? state.base.target;
     state.base.result = typeof parsed.result === "string" ? parsed.result : state.base.result;
+  } catch {
+    // keep defaults
+  }
+}
+
+function hydrateLogic() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.logic);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.logic.a = typeof parsed.a === "string" ? parsed.a : state.logic.a;
+    state.logic.b = typeof parsed.b === "string" ? parsed.b : state.logic.b;
+    state.logic.base = normalizeBaseName(parsed.base) ?? "DEC";
+    state.logic.op = normalizeLogicOp(parsed.op) ?? "AND";
+    state.logic.result = parsed.result ?? "";
+  } catch {
+    // keep defaults
+  }
+}
+
+function hydrateTable() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.table);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.table.fx = typeof parsed.fx === "string" ? parsed.fx : state.table.fx;
+    state.table.gx = typeof parsed.gx === "string" ? parsed.gx : state.table.gx;
+    state.table.start = typeof parsed.start === "string" ? parsed.start : state.table.start;
+    state.table.end = typeof parsed.end === "string" ? parsed.end : state.table.end;
+    state.table.step = typeof parsed.step === "string" ? parsed.step : state.table.step;
+    state.table.rows = Array.isArray(parsed.rows) ? parsed.rows.slice(0, 200) : [];
+    state.table.sheet = normalizeSheet(parsed.sheet, 45, 5);
+    state.table.sheetMessage = parsed.sheetMessage ?? "";
+  } catch {
+    // keep defaults
+  }
+}
+
+function hydrateTools() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.tools);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    state.tools = {
+      ...state.tools,
+      ...parsed,
+      decimalPlaces: clampInt(parsed.decimalPlaces, 0, 12, 6),
+      significantDigits: clampInt(parsed.significantDigits, 1, 15, 10),
+      rounding: normalizeRounding(parsed.rounding) ?? "half-up",
+      formatMode: normalizeFormatMode(parsed.formatMode) ?? "fixed",
+    };
   } catch {
     // keep defaults
   }
@@ -643,17 +1507,35 @@ function syncModeWorkspace() {
   switch (state.mode) {
     case "standard":
       break;
+    case "equation":
+      refreshEquationWorkspace();
+      break;
     case "matrix":
       refreshMatrixWorkspace();
       break;
+    case "vector":
+      refreshVectorWorkspace();
+      break;
     case "stats":
       refreshStatsWorkspace();
+      break;
+    case "calculus":
+      refreshCalculusWorkspace();
       break;
     case "complex":
       refreshComplexWorkspace();
       break;
     case "base":
       refreshBaseWorkspace();
+      break;
+    case "logic":
+      refreshLogicWorkspace();
+      break;
+    case "table":
+      refreshTableWorkspace();
+      break;
+    case "tools":
+      refreshToolsWorkspace();
       break;
     default:
       break;
@@ -2019,4 +2901,90 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return formatAttr(value);
+}
+
+const NAMED_CONSTANTS = {
+  c: 299792458,
+  g: 9.80665,
+  h: 6.62607015e-34,
+  k: 1.380649e-23,
+  NA: 6.02214076e23,
+  R: 8.314462618,
+};
+
+const UNIT_GROUPS = {
+  length: { m: 1, km: 1000, cm: 0.01, mm: 0.001, in: 0.0254, ft: 0.3048, mi: 1609.344 },
+  mass: { kg: 1, g: 0.001, mg: 1e-6, t: 1000, lb: 0.45359237 },
+  time: { s: 1, ms: 0.001, min: 60, h: 3600, day: 86400 },
+  speed: { "m/s": 1, "km/h": 0.2777777778, mph: 0.44704, knot: 0.5144444444 },
+  pressure: { Pa: 1, kPa: 1000, MPa: 1e6, bar: 100000, atm: 101325, psi: 6894.757293168 },
+  energy: { J: 1, kJ: 1000, cal: 4.184, kcal: 4184, Wh: 3600, kWh: 3.6e6 },
+  temperature: { C: "temp", F: "temp", K: "temp" },
+};
+
+let runtimeScope = null;
+
+function defaultLinearRows(size) {
+  return Array.from({ length: size }, (_, row) => Array.from({ length: size + 1 }, (_, col) => (col === row ? 1 : 0)));
+}
+
+function createSheet(rows, cols) {
+  return Array.from({ length: rows }, () => Array.from({ length: cols }, () => ""));
+}
+
+function clampInt(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function persistEquation() {
+  window.localStorage.setItem(STORAGE_KEYS.equation, JSON.stringify(state.equation));
+}
+
+function persistVector() {
+  window.localStorage.setItem(STORAGE_KEYS.vector, JSON.stringify(state.vector));
+}
+
+function persistCalculus() {
+  window.localStorage.setItem(STORAGE_KEYS.calculus, JSON.stringify(state.calculus));
+}
+
+function persistLogic() {
+  window.localStorage.setItem(STORAGE_KEYS.logic, JSON.stringify(state.logic));
+}
+
+function persistTable() {
+  window.localStorage.setItem(STORAGE_KEYS.table, JSON.stringify(state.table));
+}
+
+function persistTools() {
+  window.localStorage.setItem(STORAGE_KEYS.tools, JSON.stringify(state.tools));
+}
+
+function hydrateMatrix() {
+  const stored = window.localStorage.getItem(STORAGE_KEYS.matrix);
+  if (!stored) {
+    state.matrix.matrices = { a: createMatrix(state.matrix.size), b: createMatrix(state.matrix.size), c: createMatrix(state.matrix.size), d: createMatrix(state.matrix.size) };
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    state.matrix.size = [2, 3, 4].includes(parsed.size) ? parsed.size : 2;
+    const matrices = parsed.matrices || {};
+    state.matrix.matrices = {
+      a: normalizeMatrix(matrices.a ?? parsed.a, state.matrix.size),
+      b: normalizeMatrix(matrices.b ?? parsed.b, state.matrix.size),
+      c: normalizeMatrix(matrices.c, state.matrix.size),
+      d: normalizeMatrix(matrices.d, state.matrix.size),
+    };
+    state.matrix.activeMatrix = ["a", "b", "c", "d"].includes(parsed.activeMatrix) ? parsed.activeMatrix : "a";
+    state.matrix.leftMatrix = ["a", "b", "c", "d"].includes(parsed.leftMatrix) ? parsed.leftMatrix : "a";
+    state.matrix.rightMatrix = ["a", "b", "c", "d"].includes(parsed.rightMatrix) ? parsed.rightMatrix : "b";
+    state.matrix.scalar = Number.isFinite(Number(parsed.scalar)) ? Number(parsed.scalar) : 2;
+    state.matrix.result = typeof parsed.result === "string" ? parsed.result : "";
+    state.matrix.operation = typeof parsed.operation === "string" ? parsed.operation : "A + B";
+  } catch {
+    state.matrix.matrices = { a: createMatrix(state.matrix.size), b: createMatrix(state.matrix.size), c: createMatrix(state.matrix.size), d: createMatrix(state.matrix.size) };
+  }
 }
