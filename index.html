@@ -54,6 +54,13 @@
           <button class="mode-tab" type="button" data-mode="tools" data-tip="工具模式：分数、DMS、极直坐标、常数、单位换算等">工具</button>
         </nav>
 
+        <div class="function-bar">
+          <div class="function-bar-inner">
+            <span class="function-bar-label">函数库</span>
+            <div id="functionLibrary" class="chip-grid"></div>
+          </div>
+        </div>
+
         <div class="workspace">
           <section class="keypad-panel">
             <div class="panel-card panel-card--main">
@@ -72,14 +79,6 @@
                 <span id="modeSubtitle" class="panel-subtitle">标准计算</span>
               </div>
               <div id="modeWorkspace" class="mode-workspace"></div>
-            </section>
-
-            <section class="panel-card">
-              <div class="panel-head">
-                <h2>函数库</h2>
-                <span class="panel-subtitle">点击即可插入</span>
-              </div>
-              <div id="functionLibrary" class="chip-grid"></div>
             </section>
           </aside>
         </div>

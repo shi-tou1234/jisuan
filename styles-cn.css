@@ -295,6 +295,46 @@ body::before {
   border-color: transparent;
 }
 
+.function-bar {
+  margin: 0 14px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px 12px;
+}
+
+.function-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.function-bar-label {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.function-bar .chip-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  max-height: none;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.function-bar .chip-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  border-radius: 999px;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.64fr) minmax(330px, 0.86fr);
