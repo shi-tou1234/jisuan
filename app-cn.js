@@ -129,6 +129,7 @@ const state = {
   shift: false,
   ans: 0,
   justEvaluated: false,
+  advSubMode: "equation",
   matrix: {
     size: 2,
     activeMatrix: "a",
@@ -806,7 +807,7 @@ function renderAdvancedWorkspace() {
     { id: "table", label: "表格" },
     { id: "tools", label: "工具" },
   ];
-  const activeTab = state.mode === "equation" || state.mode === "vector" || state.mode === "calculus" || state.mode === "logic" || state.mode === "table" || state.mode === "tools" ? state.mode : "equation";
+  const activeTab = state.advSubMode || "equation";
 
   return `
     <div class="layout-stack">
@@ -1400,8 +1401,7 @@ function handleDocumentClick(event) {
   }
   const advTab = event.target.closest("[data-adv-tab]");
   if (advTab && elements.modeWorkspace.contains(advTab)) {
-    state.mode = advTab.dataset.advTab;
-    persistMode();
+    state.advSubMode = advTab.dataset.advTab;
     renderModeWorkspace();
     return;
   }
@@ -1436,6 +1436,10 @@ function switchMode(mode) {
   if (!MODE_LABELS[mode]) return;
   state.mode = mode;
   state.shift = false;
+  const advancedModes = ["equation", "vector", "calculus", "logic", "table", "tools"];
+  if (advancedModes.includes(mode)) {
+    state.advSubMode = mode;
+  }
   persistMode();
   persistShift();
   renderModeTabs();
@@ -1812,7 +1816,11 @@ function syncModeWorkspace() {
 }
 
 function renderModeWorkspace() {
-  elements.modeWorkspace.innerHTML = buildModeWorkspace();
+  try {
+    elements.modeWorkspace.innerHTML = buildModeWorkspace();
+  } catch (e) {
+    elements.modeWorkspace.innerHTML = `<div class="mode-banner"><h3 class="mode-title">加载错误</h3><p class="mode-copy">工作区渲染出错：${escapeHtml(e.message)}</p></div>`;
+  }
   syncModeWorkspace();
   updateModeSubtitle();
 }
@@ -2103,55 +2111,58 @@ function renderBaseSummary() {
 }
 
 function handleModeWorkspaceClick(event) {
-  const target = event.target;
+  try {
+    const target = event.target;
 
-  const matrixOp = target.closest("[data-matrix-op]");
-  if (matrixOp) {
-    applyMatrixOperation(matrixOp.dataset.matrixOp);
-    return;
-  }
-
-  const statsAction = target.closest("[data-stats-action]");
-  if (statsAction) {
-    handleStatsAction(statsAction.dataset.statsAction, statsAction.dataset.index);
-    return;
-  }
-
-  const complexOp = target.closest("[data-complex-op]");
-  if (complexOp) {
-    applyComplexOperation(complexOp.dataset.complexOp);
-    return;
-  }
-
-  const baseQuick = target.closest("[data-base-quick]");
-  if (baseQuick) {
-    state.base.source = baseQuick.dataset.baseQuick;
-    if (baseQuick.dataset.baseQuick === "BIN" || baseQuick.dataset.baseQuick === "OCT" || baseQuick.dataset.baseQuick === "DEC" || baseQuick.dataset.baseQuick === "HEX") {
-      state.base.target = baseQuick.dataset.baseQuick;
+    const matrixOp = target.closest("[data-matrix-op]");
+    if (matrixOp) {
+      applyMatrixOperation(matrixOp.dataset.matrixOp);
+      return;
     }
-    persistBase();
-    renderModeWorkspace();
-    return;
-  }
 
-  const baseConvert = target.closest('[data-mode-action="convert-base"]');
-  if (baseConvert) {
-    convertAndPersistBase();
-    return;
-  }
+    const statsAction = target.closest("[data-stats-action]");
+    if (statsAction) {
+      handleStatsAction(statsAction.dataset.statsAction, statsAction.dataset.index);
+      return;
+    }
 
-  const advAction = target.closest("[data-adv-action]");
-  if (advAction) {
-    handleAdvancedAction(advAction.dataset.advAction);
-    return;
-  }
+    const complexOp = target.closest("[data-complex-op]");
+    if (complexOp) {
+      applyComplexOperation(complexOp.dataset.complexOp);
+      return;
+    }
 
-  const advTab = target.closest("[data-adv-tab]");
-  if (advTab) {
-    state.mode = advTab.dataset.advTab;
-    persistMode();
-    renderModeWorkspace();
-    return;
+    const baseQuick = target.closest("[data-base-quick]");
+    if (baseQuick) {
+      state.base.source = baseQuick.dataset.baseQuick;
+      if (baseQuick.dataset.baseQuick === "BIN" || baseQuick.dataset.baseQuick === "OCT" || baseQuick.dataset.baseQuick === "DEC" || baseQuick.dataset.baseQuick === "HEX") {
+        state.base.target = baseQuick.dataset.baseQuick;
+      }
+      persistBase();
+      renderModeWorkspace();
+      return;
+    }
+
+    const baseConvert = target.closest('[data-mode-action="convert-base"]');
+    if (baseConvert) {
+      convertAndPersistBase();
+      return;
+    }
+
+    const advAction = target.closest("[data-adv-action]");
+    if (advAction) {
+      handleAdvancedAction(advAction.dataset.advAction);
+      return;
+    }
+
+    const advTab = target.closest("[data-adv-tab]");
+    if (advTab) {
+      state.advSubMode = advTab.dataset.advTab;
+      renderModeWorkspace();
+      return;
+    }
+  } catch (e) {
+    setHoverHint("操作出错: " + e.message);
   }
 }
 
