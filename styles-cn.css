@@ -295,46 +295,6 @@ body::before {
   border-color: transparent;
 }
 
-.function-bar {
-  margin: 0 14px 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.15);
-  padding: 8px 12px;
-}
-
-.function-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.function-bar-label {
-  flex-shrink: 0;
-  color: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
-
-.function-bar .chip-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  overflow-x: auto;
-  max-height: none;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
-}
-
-.function-bar .chip-btn {
-  flex-shrink: 0;
-  padding: 5px 10px;
-  font-size: 0.78rem;
-  border-radius: 999px;
-}
-
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.64fr) minmax(330px, 0.86fr);
@@ -358,7 +318,6 @@ body::before {
 }
 
 .key,
-.chip-btn,
 .ghost-btn,
 .mode-tab,
 .history-item,
@@ -407,7 +366,6 @@ body::before {
 }
 
 .key:focus-visible,
-.chip-btn:focus-visible,
 .ghost-btn:focus-visible,
 .history-item:focus-visible,
 .mode-tab:focus-visible,
@@ -541,7 +499,6 @@ body::before {
 }
 
 .ghost-btn:hover,
-.chip-btn:hover,
 .mode-action:hover,
 .matrix-mode-btn:hover,
 .stats-pill:hover,
@@ -611,25 +568,6 @@ body::before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.chip-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  max-height: 18vh;
-  overflow: auto;
-}
-
-.chip-btn {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 9px 12px;
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  font-size: 0.84rem;
-  letter-spacing: 0.05em;
 }
 
 .matrix-grid,
@@ -938,8 +876,7 @@ select:focus option:hover {
     max-height: none;
   }
 
-  .history-list,
-  .chip-grid {
+  .history-list {
     max-height: 22vh;
   }
 

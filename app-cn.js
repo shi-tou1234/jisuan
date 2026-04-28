@@ -88,37 +88,6 @@ const SCIENTIFIC_KEYS = [
   { label: "逗号", action: ",", tip: "输入函数参数分隔符。", className: "key key--func" },
 ];
 
-const FUNCTION_LIBRARY = [
-  { label: "正弦", insert: "sin(", tip: "插入正弦函数。" },
-  { label: "余弦", insert: "cos(", tip: "插入余弦函数。" },
-  { label: "正切", insert: "tan(", tip: "插入正切函数。" },
-  { label: "反正弦", insert: "asin(", tip: "插入反正弦函数。" },
-  { label: "反余弦", insert: "acos(", tip: "插入反余弦函数。" },
-  { label: "反正切", insert: "atan(", tip: "插入反正切函数。" },
-  { label: "双曲正弦", insert: "sinh(", tip: "插入双曲正弦函数。" },
-  { label: "双曲余弦", insert: "cosh(", tip: "插入双曲余弦函数。" },
-  { label: "双曲正切", insert: "tanh(", tip: "插入双曲正切函数。" },
-  { label: "反双曲正弦", insert: "asinh(", tip: "插入反双曲正弦函数。" },
-  { label: "反双曲余弦", insert: "acosh(", tip: "插入反双曲余弦函数。" },
-  { label: "反双曲正切", insert: "atanh(", tip: "插入反双曲正切函数。" },
-  { label: "常对数", insert: "log(", tip: "插入常用对数函数。" },
-  { label: "自然对数", insert: "ln(", tip: "插入自然对数函数。" },
-  { label: "平方根", insert: "sqrt(", tip: "插入平方根函数。" },
-  { label: "绝对值", insert: "abs(", tip: "插入绝对值函数。" },
-  { label: "向下取整", insert: "floor(", tip: "插入向下取整函数。" },
-  { label: "向上取整", insert: "ceil(", tip: "插入向上取整函数。" },
-  { label: "四舍五入", insert: "round(", tip: "插入四舍五入函数。" },
-  { label: "随机数", insert: "rand()", tip: "插入 0 到 1 之间的随机数。" },
-  { label: "组合", insert: "ncr(", tip: "插入组合函数。" },
-  { label: "排列", insert: "npr(", tip: "插入排列函数。" },
-  { label: "开方", insert: "root(", tip: "插入开方函数。" },
-  { label: "10 的幂", insert: "pow10(", tip: "插入 10 的幂函数。" },
-  { label: "e 的幂", insert: "exp(", tip: "插入 e 的幂函数。" },
-  { label: "π", insert: "pi", tip: "插入圆周率常量。" },
-  { label: "e", insert: "e", tip: "插入自然常量。" },
-  { label: "结果", insert: "Ans", tip: "插入上一次结果。" },
-];
-
 const state = {
   mode: "standard",
   expression: "",
@@ -287,7 +256,6 @@ const elements = {
   hoverHint: document.getElementById("hoverHint"),
   historyList: document.getElementById("historyList"),
   clearHistoryBtn: document.getElementById("clearHistoryBtn"),
-  functionLibrary: document.getElementById("functionLibrary"),
   modeWorkspace: document.getElementById("modeWorkspace"),
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
 };
@@ -297,7 +265,6 @@ initialize();
 function initialize() {
   hydrateState();
   renderKeypad();
-  renderFunctionLibrary();
   renderModeWorkspace();
   bindEvents();
   updateDisplay();
@@ -523,10 +490,22 @@ function handleAdvancedAction(action) {
       state.tools.unitResult = `Σ=${formatNumber(total)}`;
       state.calculus.sigmaResult = state.tools.unitResult;
       persistCalculus();
-    } else if (action === "logic") {
+    } else if (action.startsWith("logic-")) {
       const a = parseInt(state.logic.a || "0", 10);
       const b = parseInt(state.logic.b || "0", 10);
-      state.tools.unitResult = `AND=${a & b}, OR=${a | b}, XOR=${a ^ b}, NOT(A)=${~a}`;
+      const base = state.logic.base || "DEC";
+      const op = action.replace("logic-", "");
+      let val;
+      let label;
+      switch (op) {
+        case "and": val = a & b; label = "AND"; break;
+        case "or": val = a | b; label = "OR"; break;
+        case "xor": val = a ^ b; label = "XOR"; break;
+        case "not": val = ~a; label = "NOT(A)"; break;
+        case "xnor": val = ~(a ^ b); label = "XNOR"; break;
+        default: val = 0; label = "?";
+      }
+      state.tools.unitResult = `${label} = ${formatLogicValue(val, base)} (十进制: ${formatNumber(val)})`;
     } else if (action === "table") {
       state.table.rows = [];
       const start = Number(state.table.start);
@@ -909,19 +888,53 @@ function renderCalculusPanel() {
 }
 
 function renderLogicPanel() {
+  const a = parseInt(state.logic.a || "0", 10);
+  const b = parseInt(state.logic.b || "0", 10);
+  const base = state.logic.base || "DEC";
+  const results = {
+    and: a & b,
+    or: a | b,
+    xor: a ^ b,
+    notA: ~a,
+    xnor: ~(a ^ b),
+  };
   return `
     <section class="module-card">
       <h3>逻辑运算</h3>
       <div class="summary-grid">
         <label class="field-card"><span class="field-label">A (十进制)</span><input id="logicA" class="stats-input" type="number" step="1" value="${escapeAttr(state.logic.a)}" /></label>
         <label class="field-card"><span class="field-label">B (十进制)</span><input id="logicB" class="stats-input" type="number" step="1" value="${escapeAttr(state.logic.b)}" /></label>
+        <label class="field-card"><span class="field-label">显示进制</span><select id="logicBase" class="base-select"><option value="DEC" ${base==="DEC"?"selected":""}>十进制</option><option value="HEX" ${base==="HEX"?"selected":""}>十六进制</option><option value="BIN" ${base==="BIN"?"selected":""}>二进制</option><option value="OCT" ${base==="OCT"?"selected":""}>八进制</option></select></label>
       </div>
       <div class="button-row">
-        <button class="mode-action is-active" type="button" data-adv-action="logic">逻辑运算</button>
+        <button class="mode-action is-active" type="button" data-adv-action="logic-and">AND</button>
+        <button class="mode-action" type="button" data-adv-action="logic-or">OR</button>
+        <button class="mode-action" type="button" data-adv-action="logic-xor">XOR</button>
+        <button class="mode-action" type="button" data-adv-action="logic-not">NOT(A)</button>
+        <button class="mode-action" type="button" data-adv-action="logic-xnor">XNOR</button>
       </div>
-      <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <div class="summary-grid" style="margin-top:10px">
+        <div class="summary-card"><span class="summary-label">A</span><strong>${formatLogicValue(a, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">B</span><strong>${formatLogicValue(b, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">AND</span><strong>${formatLogicValue(results.and, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">OR</span><strong>${formatLogicValue(results.or, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">XOR</span><strong>${formatLogicValue(results.xor, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">NOT(A)</span><strong>${formatLogicValue(results.notA, base)}</strong></div>
+        <div class="summary-card"><span class="summary-label">XNOR</span><strong>${formatLogicValue(results.xnor, base)}</strong></div>
+      </div>
+      <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "点击按钮查看运算结果")}</pre>
     </section>
   `;
+}
+
+function formatLogicValue(val, base) {
+  const n = val >>> 0;
+  switch (base) {
+    case "HEX": return formatBaseNumber(n, 16);
+    case "BIN": return formatBaseNumber(n, 2);
+    case "OCT": return formatBaseNumber(n, 8);
+    default: return formatNumber(val);
+  }
 }
 
 function renderTablePanel() {
@@ -1379,7 +1392,6 @@ function bindEvents() {
     renderHistory();
   });
 
-  elements.functionLibrary.addEventListener("click", handleLibraryClick);
   elements.historyList.addEventListener("click", handleHistoryClick);
 
   document.addEventListener("keydown", handleKeyboard);
@@ -1531,6 +1543,7 @@ function handleGlobalChange(event) {
     }
     case "polyDegree": state.equation.polyDegree = Number(target.value); persistEquation(); break;
     case "ineqSign": state.equation.inequalitySign = target.value; persistEquation(); break;
+    case "logicBase": state.logic.base = target.value; persistLogic(); renderModeWorkspace(); break;
     case "constKey": state.tools.constantKey = target.value; persistTools(); break;
     case "unitGroup": state.tools.unitGroup = target.value; persistTools(); break;
     case "baseSource": state.base.source = normalizeBaseName(target.value) ?? state.base.source; persistBase(); refreshBaseWorkspace(); break;
@@ -1598,12 +1611,6 @@ function renderKeypad() {
   }).join("");
 }
 
-function renderFunctionLibrary() {
-  elements.functionLibrary.innerHTML = FUNCTION_LIBRARY.map((item) => {
-    return `<button class="chip-btn" type="button" data-insert="${escapeHtml(item.insert)}" data-tip="${escapeHtml(item.tip)}">${escapeHtml(item.label)}</button>`;
-  }).join("");
-}
-
 function renderHistory() {
   elements.historyList.innerHTML = state.history.length
     ? state.history.map((item, index) => `
@@ -1626,16 +1633,6 @@ function handleHistoryClick(event) {
   state.preview = entry.result;
   state.justEvaluated = false;
   persistExpression();
-  updateDisplay();
-  evaluatePreview();
-}
-
-function handleLibraryClick(event) {
-  const button = event.target.closest("button[data-insert]");
-  if (!button) return;
-  insertText(button.dataset.insert);
-  state.shift = false;
-  persistShift();
   updateDisplay();
   evaluatePreview();
 }
@@ -3608,6 +3605,10 @@ function normalizeFormatMode(val) {
 
 function normalizeMatrixKey(key) {
   return ["a", "b", "c", "d"].includes(key) ? key : null;
+}
+
+function normalizeLogicOp(op) {
+  return ["AND", "OR", "NOT", "XOR", "XNOR"].includes(op) ? op : null;
 }
 
 let runtimeScope = null;
