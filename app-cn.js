@@ -132,6 +132,7 @@ const elements = {
   expressionView: document.getElementById("expressionView"),
   previewView: document.getElementById("previewView"),
   modeChip: document.getElementById("modeChip"),
+  modeSubtitle: document.getElementById("modeSubtitle"),
   angleModeChip: document.getElementById("angleModeChip"),
   shiftChip: document.getElementById("shiftChip"),
   memoryChip: document.getElementById("memoryChip"),
@@ -307,6 +308,7 @@ function switchMode(mode) {
   renderModeTabs();
   renderModeWorkspace();
   syncModeWorkspace();
+  updateModeSubtitle();
   setHoverHint(MODE_HINTS[state.mode]);
 }
 
@@ -631,6 +633,12 @@ function updateDisplay() {
   persistExpression();
 }
 
+function updateModeSubtitle() {
+  if (elements.modeSubtitle) {
+    elements.modeSubtitle.textContent = `${MODE_LABELS[state.mode] || "标准"}工具区`;
+  }
+}
+
 function syncModeWorkspace() {
   switch (state.mode) {
     case "standard":
@@ -655,6 +663,7 @@ function syncModeWorkspace() {
 function renderModeWorkspace() {
   elements.modeWorkspace.innerHTML = buildModeWorkspace();
   syncModeWorkspace();
+  updateModeSubtitle();
 }
 
 function buildModeWorkspace() {
