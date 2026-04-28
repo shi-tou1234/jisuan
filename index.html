@@ -18,15 +18,26 @@
 
       <section class="calculator" aria-label="科学计算器">
         <header class="display-panel">
-          <div class="status-bar">
-            <span id="modeChip" class="chip chip--mode">标准</span>
-            <span id="angleModeChip" class="chip chip--mode">角度：度</span>
-            <span id="shiftChip" class="chip chip--shift">副功能：关</span>
-            <span id="memoryChip" class="chip chip--memory">内存 0</span>
+          <div class="display-main">
+            <div class="display-content">
+              <div class="status-bar">
+                <span id="modeChip" class="chip chip--mode">标准</span>
+                <span id="angleModeChip" class="chip chip--mode">角度：度</span>
+                <span id="shiftChip" class="chip chip--shift">副功能：关</span>
+                <span id="memoryChip" class="chip chip--memory">内存 0</span>
+              </div>
+              <div id="expressionView" class="expression" aria-live="polite"></div>
+              <div id="previewView" class="preview" aria-live="polite"></div>
+              <div id="hoverHint" class="hint-bar" aria-live="polite">将鼠标移到按钮上查看功能说明。</div>
+            </div>
+            <aside class="display-history">
+              <div class="panel-head">
+                <h2>计算记录</h2>
+                <button id="clearHistoryBtn" class="ghost-btn" type="button">清空记录</button>
+              </div>
+              <ol id="historyList" class="history-list"></ol>
+            </aside>
           </div>
-          <div id="expressionView" class="expression" aria-live="polite"></div>
-          <div id="previewView" class="preview" aria-live="polite"></div>
-          <div id="hoverHint" class="hint-bar" aria-live="polite">将鼠标移到按钮上查看功能说明。</div>
         </header>
 
         <nav class="mode-tabs" aria-label="模式切换">
@@ -61,14 +72,6 @@
                 <span id="modeSubtitle" class="panel-subtitle">标准计算</span>
               </div>
               <div id="modeWorkspace" class="mode-workspace"></div>
-            </section>
-
-            <section class="panel-card">
-              <div class="panel-head">
-                <h2>计算记录</h2>
-                <button id="clearHistoryBtn" class="ghost-btn" type="button">清空记录</button>
-              </div>
-              <ol id="historyList" class="history-list"></ol>
             </section>
 
             <section class="panel-card">
