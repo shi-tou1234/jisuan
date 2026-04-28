@@ -346,7 +346,7 @@ function renderHistory() {
         </button>
       </li>
     `).join("")
-    : `<li class="history-item" tabindex="0" data-tip="这里会显示最近的计算结果">暂无计算记录</li>`;
+    : `<li class="history-empty">暂无计算记录</li>`;
 }
 
 function handleHistoryClick(event) {
