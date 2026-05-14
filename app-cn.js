@@ -106,6 +106,7 @@ const state = {
     leftMatrix: "a",
     rightMatrix: "b",
     scalar: 2,
+    activeAction: "add",
     matrices: {
       a: createMatrix(2),
       b: createMatrix(2),
@@ -120,6 +121,7 @@ const state = {
     linearSize: 2,
     linearRows: defaultLinearRows(2),
     linearResult: "",
+    activeAction: "solve-linear",
     polyDegree: 2,
     polyCoefficients: [1, 0, 0, 0, 0],
     polyResult: "",
@@ -137,6 +139,7 @@ const state = {
     left: "v1",
     right: "v2",
     scalar: 2,
+    activeAction: "vector-dot",
     vectors: {
       v1: [1, 0, 0],
       v2: [0, 1, 0],
@@ -151,6 +154,7 @@ const state = {
     input: "",
     pairedInput: "",
     paired: [],
+    activeAction: "add",
     regressionType: "linear",
     regressionResult: "",
     distribution: {
@@ -170,6 +174,7 @@ const state = {
     variable: "x",
     point: "0",
     order: 1,
+    activeAction: "calc-derivative",
     derivativeResult: "",
     integralExpression: "sin(x)",
     lower: "0",
@@ -186,6 +191,7 @@ const state = {
     a: { re: 0, im: 0 },
     b: { re: 0, im: 0 },
     operation: "加",
+    activeAction: "add",
     result: { re: 0, im: 0 },
     polar: { r: "1", theta: "45" },
     powerN: "2",
@@ -195,12 +201,14 @@ const state = {
     source: "BIN",
     target: "DEC",
     result: "10",
+    activeQuick: "BIN",
   },
   logic: {
     a: "10",
     b: "12",
     base: "DEC",
     op: "AND",
+    activeAction: "logic-and",
     result: "",
   },
   table: {
@@ -209,6 +217,7 @@ const state = {
     start: "0",
     end: "10",
     step: "1",
+    activeAction: "table",
     rows: [],
     sheet: createSheet(45, 5),
     sheetMessage: "",
@@ -242,6 +251,7 @@ const state = {
     unitTo: "km",
     unitInput: "1000",
     unitResult: "",
+    activeAction: "fraction",
   },
 };
 
@@ -301,6 +311,9 @@ function hydrateState() {
   }
   state.shift = storedShift === "true";
   if (storedMode && MODE_LABELS[storedMode]) state.mode = storedMode;
+  if (["equation", "vector", "calculus", "logic", "table", "tools"].includes(state.mode)) {
+    state.advSubMode = state.mode;
+  }
 
   hydrateMatrix();
   hydrateEquation();
@@ -374,6 +387,7 @@ function buildModeWorkspace() {
 
 function handleAdvancedAction(action) {
   try {
+    setActiveAdvancedAction(action);
     if (action === "solve-linear") {
       const n = state.equation.linearSize;
       const rows = state.equation.linearRows && state.equation.linearRows.length === n ? state.equation.linearRows : defaultLinearRows(n);
@@ -578,6 +592,31 @@ function handleAdvancedAction(action) {
   refreshToolsWorkspace();
 }
 
+
+function setActiveAdvancedAction(action) {
+  switch (state.mode) {
+    case "equation":
+      state.equation.activeAction = action;
+      break;
+    case "vector":
+      state.vector.activeAction = action;
+      break;
+    case "calculus":
+      state.calculus.activeAction = action;
+      break;
+    case "logic":
+      state.logic.activeAction = action;
+      break;
+    case "table":
+      state.table.activeAction = action;
+      break;
+    case "tools":
+      state.tools.activeAction = action;
+      break;
+    default:
+      break;
+  }
+}
 function evaluateScopedExpression(expression, scope) {
   const previous = runtimeScope;
   runtimeScope = { ...(runtimeScope || {}), ...scope };
@@ -1460,6 +1499,7 @@ function handleWorkspaceClick(target) {
 
   const baseQuick = target.closest("[data-base-quick]");
   if (baseQuick) {
+    state.base.activeQuick = baseQuick.dataset.baseQuick;
     state.base.source = baseQuick.dataset.baseQuick;
     if (["BIN", "OCT", "DEC", "HEX"].includes(baseQuick.dataset.baseQuick)) state.base.target = baseQuick.dataset.baseQuick;
     persistBase();
@@ -2035,6 +2075,7 @@ function renderModeWorkspace() {
   }
   syncModeWorkspace();
   updateModeSubtitle();
+  syncWorkspaceButtonStates();
   applyUiFilter();
 }
 
@@ -2606,6 +2647,7 @@ function updateComplexField(input) {
 }
 
 function handleStatsAction(action, index) {
+  state.stats.activeAction = action;
   if (action === "add") {
     const parsed = parseStatsInput(state.stats.input);
     if (!parsed.length) return;
@@ -2644,6 +2686,7 @@ function handleStatsAction(action, index) {
 }
 
 function applyMatrixOperation(operation) {
+  state.matrix.activeAction = operation;
   let result;
   let label = "";
 
@@ -2703,6 +2746,7 @@ function applyMatrixOperation(operation) {
 }
 
 function applyComplexOperation(operation) {
+  state.complex.activeAction = operation;
   let result;
   let label = "";
 
@@ -2758,6 +2802,7 @@ function refreshMatrixWorkspace() {
 
   const operation = elements.modeWorkspace.querySelector(".matrix-status");
   if (operation) operation.textContent = state.matrix.operation || "请先选择一个矩阵运算。";
+  syncWorkspaceButtonStates();
 }
 
 function refreshStatsWorkspace() {
@@ -2767,6 +2812,7 @@ function refreshStatsWorkspace() {
   if (summary) summary.innerHTML = renderStatsSummary();
   const input = elements.modeWorkspace.querySelector("#statsInput");
   if (input) input.value = state.stats.input;
+  syncWorkspaceButtonStates();
 }
 
 function refreshComplexWorkspace() {
@@ -2774,6 +2820,7 @@ function refreshComplexWorkspace() {
   if (result) result.textContent = formatComplexResult(state.complex.result);
   const operation = elements.modeWorkspace.querySelector(".complex-status");
   if (operation) operation.textContent = state.complex.operation || "请选择一个复数运算。";
+  syncWorkspaceButtonStates();
 }
 
 function refreshBaseWorkspace() {
@@ -2781,11 +2828,13 @@ function refreshBaseWorkspace() {
   if (result) result.textContent = state.base.result || "尚未转换";
   const outputs = elements.modeWorkspace.querySelector(".base-output-grid");
   if (outputs) outputs.innerHTML = renderBaseSummary();
+  syncWorkspaceButtonStates();
 }
 
 function refreshEquationWorkspace() {
   const result = elements.modeWorkspace.querySelector("#advancedResult");
   if (result) result.textContent = state.tools.unitResult || "点击按钮执行对应功能。";
+  syncWorkspaceButtonStates();
 }
 
 function refreshVectorWorkspace() {
@@ -2806,6 +2855,47 @@ function refreshTableWorkspace() {
 
 function refreshToolsWorkspace() {
   refreshEquationWorkspace();
+}
+
+function syncWorkspaceButtonStates() {
+  if (!elements.modeWorkspace) return;
+
+  const activeAdvAction = getActiveAdvancedAction();
+  syncButtonGroup(elements.modeWorkspace, "[data-matrix-op]", state.matrix.activeAction);
+  syncButtonGroup(elements.modeWorkspace, "[data-complex-op]", state.complex.activeAction);
+  syncButtonGroup(elements.modeWorkspace, "[data-stats-action]", state.stats.activeAction);
+  syncButtonGroup(elements.modeWorkspace, "[data-base-quick]", state.base.activeQuick);
+  syncButtonGroup(elements.modeWorkspace, "[data-adv-action]", activeAdvAction);
+}
+
+function syncButtonGroup(container, selector, activeValue) {
+  const buttons = container.querySelectorAll(selector);
+  buttons.forEach((button) => {
+    button.classList.toggle("is-active", Boolean(activeValue) && button.dataset[datasetKeyForSelector(selector)] === activeValue);
+  });
+}
+
+function datasetKeyForSelector(selector) {
+  switch (selector) {
+    case "[data-matrix-op]": return "matrixOp";
+    case "[data-complex-op]": return "complexOp";
+    case "[data-stats-action]": return "statsAction";
+    case "[data-base-quick]": return "baseQuick";
+    case "[data-adv-action]": return "advAction";
+    default: return "action";
+  }
+}
+
+function getActiveAdvancedAction() {
+  switch (state.mode) {
+    case "equation": return state.equation.activeAction;
+    case "vector": return state.vector.activeAction;
+    case "calculus": return state.calculus.activeAction;
+    case "logic": return state.logic.activeAction;
+    case "table": return state.table.activeAction;
+    case "tools": return state.tools.activeAction;
+    default: return "";
+  }
 }
 
 function renderModeWorkspaceRefresh() {

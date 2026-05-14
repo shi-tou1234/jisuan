@@ -106,7 +106,7 @@ body::before {
   background: linear-gradient(180deg, rgba(28, 36, 39, 0.95), rgba(11, 15, 17, 0.98));
   box-shadow: var(--shadow-lg);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .calculator::before {
@@ -191,9 +191,16 @@ body::before {
 
 .quick-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-content: start;
   gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-actions::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .chip-btn {
@@ -217,6 +224,7 @@ body::before {
 }
 
 .chip-btn--quick {
+  flex: 0 0 auto;
   min-height: 42px;
   padding: 0 14px;
   font-size: 0.82rem;
