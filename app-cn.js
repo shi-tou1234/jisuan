@@ -98,6 +98,7 @@ const state = {
   shift: false,
   ans: 0,
   justEvaluated: false,
+  uiSearch: "",
   advSubMode: "equation",
   matrix: {
     size: 2,
@@ -256,6 +257,10 @@ const elements = {
   hoverHint: document.getElementById("hoverHint"),
   historyList: document.getElementById("historyList"),
   clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+  uiSearchInput: document.getElementById("uiSearchInput"),
+  clearUiSearchBtn: document.getElementById("clearUiSearchBtn"),
+  uiSearchStatus: document.getElementById("uiSearchStatus"),
+  quickActions: document.querySelector(".quick-actions"),
   modeWorkspace: document.getElementById("modeWorkspace"),
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
 };
@@ -273,6 +278,7 @@ function initialize() {
   syncModeWorkspace();
   setHoverHint(MODE_HINTS[state.mode]);
   evaluatePreview();
+  applyUiFilter();
 }
 
 function hydrateState() {
@@ -1386,11 +1392,20 @@ function hydrateTools() {
 
 function bindEvents() {
   elements.modeTabs.forEach((button) => button.addEventListener("click", handleModeTabClick));
+  if (elements.quickActions) {
+    elements.quickActions.addEventListener("click", handleQuickActionClick);
+  }
   elements.clearHistoryBtn.addEventListener("click", () => {
     state.history = [];
     persistHistory();
     renderHistory();
   });
+  if (elements.uiSearchInput) {
+    elements.uiSearchInput.addEventListener("input", handleUiSearchInput);
+  }
+  if (elements.clearUiSearchBtn) {
+    elements.clearUiSearchBtn.addEventListener("click", clearUiSearch);
+  }
 
   elements.historyList.addEventListener("click", handleHistoryClick);
 
@@ -1586,6 +1601,7 @@ function switchMode(mode) {
   }
   persistMode();
   persistShift();
+  updateDisplay();
   renderModeTabs();
   renderModeWorkspace();
   syncModeWorkspace();
@@ -1597,6 +1613,7 @@ function renderModeTabs() {
   elements.modeTabs.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === state.mode);
   });
+  applyUiFilter();
 }
 
 function renderKeypad() {
@@ -1609,6 +1626,7 @@ function renderKeypad() {
       </button>
     `;
   }).join("");
+  applyUiFilter();
 }
 
 function renderHistory() {
@@ -1622,6 +1640,7 @@ function renderHistory() {
       </li>
     `).join("")
     : `<li class="history-empty">暂无计算记录</li>`;
+  applyUiFilter();
 }
 
 function handleHistoryClick(event) {
@@ -1717,6 +1736,12 @@ function handleAction(action) {
 function handleKeyboard(event) {
   if (isEditableTarget(event.target)) return;
 
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    focusUiSearch();
+    return;
+  }
+
   const key = event.key;
 
   if (key === "Enter" || key === "=") {
@@ -1736,6 +1761,10 @@ function handleKeyboard(event) {
 
   if (key === "Escape") {
     event.preventDefault();
+    if (state.uiSearch) {
+      clearUiSearch();
+      return;
+    }
     handleAction("ac");
     return;
   }
@@ -1774,6 +1803,61 @@ function isEditableTarget(target) {
   if (!target || !target.tagName) return false;
   const tag = target.tagName.toLowerCase();
   return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+}
+
+function handleQuickActionClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  handleAction(button.dataset.action);
+}
+
+function handleUiSearchInput(event) {
+  state.uiSearch = event.target.value || "";
+  applyUiFilter();
+}
+
+function clearUiSearch() {
+  state.uiSearch = "";
+  if (elements.uiSearchInput) {
+    elements.uiSearchInput.value = "";
+    elements.uiSearchInput.focus();
+  }
+  applyUiFilter();
+}
+
+function focusUiSearch() {
+  if (!elements.uiSearchInput) return;
+  elements.uiSearchInput.focus();
+  elements.uiSearchInput.select();
+}
+
+function applyUiFilter() {
+  const query = state.uiSearch.trim().toLowerCase();
+  const selectors = ["#keypad button", ".mode-tabs button", ".quick-actions button", ".history-item", ".mode-workspace button"];
+  const buttons = document.querySelectorAll(selectors.join(", "));
+  let visibleCount = 0;
+
+  buttons.forEach((button) => {
+    const searchable = [
+      button.textContent,
+      button.dataset.action,
+      button.dataset.mode,
+      button.dataset.tip,
+      button.getAttribute("aria-label"),
+      button.getAttribute("title"),
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matches = !query || searchable.includes(query);
+    button.hidden = !matches;
+    if (matches) visibleCount += 1;
+  });
+
+  if (elements.uiSearchStatus) {
+    elements.uiSearchStatus.textContent = query
+      ? visibleCount > 0
+        ? `找到 ${visibleCount} 个匹配项`
+        : "未找到匹配按钮"
+      : "输入关键字筛选按钮";
+  }
 }
 
 function cycleAngleMode() {
@@ -1951,6 +2035,7 @@ function renderModeWorkspace() {
   }
   syncModeWorkspace();
   updateModeSubtitle();
+  applyUiFilter();
 }
 
 function buildModeWorkspace() {

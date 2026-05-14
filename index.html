@@ -40,6 +40,33 @@
           </div>
         </header>
 
+        <section class="command-rail" aria-label="快速查找与常用操作">
+          <div class="command-search panel-card">
+            <div class="panel-head panel-head--compact">
+              <h2>快速查找</h2>
+              <span id="uiSearchStatus" class="panel-subtitle">输入关键字筛选按钮</span>
+            </div>
+            <div class="search-row">
+              <label class="sr-only" for="uiSearchInput">搜索按钮、模式或功能</label>
+              <input id="uiSearchInput" class="search-input" type="search" placeholder="搜索按钮、模式或功能，例如 sin、矩阵、清空" autocomplete="off" spellcheck="false" />
+              <button id="clearUiSearchBtn" class="ghost-btn ghost-btn--compact" type="button">清除</button>
+            </div>
+          </div>
+
+          <div class="quick-actions panel-card" aria-label="高频操作">
+            <button class="chip-btn chip-btn--quick" type="button" data-action="shift">副功能</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="angle">角度</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="ac">清空</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="del">删除</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="Ans">Ans</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="pi">π</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="e">e</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="mr">取内存</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="mplus">内存加</button>
+            <button class="chip-btn chip-btn--quick" type="button" data-action="mminus">内存减</button>
+          </div>
+        </section>
+
         <nav class="mode-tabs" aria-label="模式切换">
           <button class="mode-tab is-active" type="button" data-mode="standard" data-tip="标准模式：表达式、常量、函数和记忆运算">标准</button>
           <button class="mode-tab" type="button" data-mode="equation" data-tip="方程模式：线性方程组、多项式、不等式、SOLVE、比例式">方程</button>
