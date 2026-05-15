@@ -66,7 +66,7 @@ const KEY_ROWS = [
     { label: "6", action: "6", className: "key" },
     { label: "×", action: "*", className: "key key--op" },
     { label: "!", action: "!", shiftAction: "mod(", secondary: "mod", className: "key key--op" },
-    { label: "=", action: "equals", className: "key key--op" },
+    { label: "=", action: "equals", className: "key key--tall key--op" },
   ],
   [
     { label: "1", action: "1", className: "key" },
