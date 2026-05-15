@@ -84,6 +84,7 @@ const SCIENTIFIC_KEY_ROWS = [
     { label: "6", action: "6", tip: "输入数字 6。", className: "key" },
     { label: "×", action: "*", tip: "输入乘号。", className: "key key--op" },
     { label: "!", action: "!", shiftAction: "mod(", secondary: "mod", tip: "输入阶乘。副功能可输入取模函数。", className: "key key--op" },
+    { label: "=", action: "equals", tip: "执行计算并保存到记录。", className: "key key--op" },
   ],
   [
     { label: "1", action: "1", tip: "输入数字 1。", className: "key" },
@@ -98,7 +99,6 @@ const SCIENTIFIC_KEY_ROWS = [
     { label: "+/-", action: "negate", tip: "切换当前项的正负号。", className: "key key--func" },
     { label: "+", action: "+", tip: "输入加号。", className: "key key--op" },
     { label: ",", action: ",", tip: "输入函数参数分隔符。", className: "key key--func" },
-    { label: "=", action: "equals", tip: "执行计算并保存到记录。", className: "key key--op" },
   ],
 ];
 
