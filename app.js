@@ -6,15 +6,6 @@ const STORAGE_KEYS = {
   shift: "calc991.shift",
 };
 
-const FUNCTION_BUTTONS = [
-  { label: "sin", alt: "asin", insert: "sin(", altInsert: "asin(" },
-  { label: "cos", alt: "acos", insert: "cos(", altInsert: "acos(" },
-  { label: "tan", alt: "atan", insert: "tan(", altInsert: "atan(" },
-  { label: "log", alt: "10^x", insert: "log(", altInsert: "pow10(" },
-  { label: "ln", alt: "e^x", insert: "ln(", altInsert: "exp(" },
-  { label: "sqrt", alt: "x^2", insert: "sqrt(", altInsert: "square(" },
-];
-
 const FUNCTION_LIBRARY = [
   { label: "abs(", insert: "abs(" },
   { label: "floor(", insert: "floor(" },
@@ -36,41 +27,61 @@ const FUNCTION_LIBRARY = [
   { label: "Ans", insert: "Ans" },
 ];
 
-const KEY_LAYOUT = [
-  { label: "SHIFT", action: "shift", className: "key key--func" },
-  { label: "DEG", action: "angle", className: "key key--func" },
-  { label: "MC", action: "mc", className: "key key--accent" },
-  { label: "MR", action: "mr", className: "key key--accent" },
-  { label: "M+", action: "mplus", className: "key key--accent" },
-  { label: "M-", action: "mminus", className: "key key--accent" },
-  { label: "pi", action: "pi", className: "key key--func" },
-  { label: "e", action: "e", className: "key key--func" },
-  { label: "Ans", action: "Ans", className: "key key--func" },
-  { label: "(", action: "(", className: "key key--func" },
-  { label: ")", action: ")", className: "key key--func" },
-  { label: "DEL", action: "del", className: "key key--danger" },
-  { label: "7", action: "7", className: "key" },
-  { label: "8", action: "8", className: "key" },
-  { label: "9", action: "9", className: "key" },
-  { label: "÷", action: "/", className: "key key--op" },
-  { label: "AC", action: "ac", className: "key key--danger" },
-  { label: "^", action: "^", shiftAction: "root(", secondary: "root", className: "key key--op" },
-  { label: "4", action: "4", className: "key" },
-  { label: "5", action: "5", className: "key" },
-  { label: "6", action: "6", className: "key" },
-  { label: "×", action: "*", className: "key key--op" },
-  { label: "!", action: "!", shiftAction: "mod(", secondary: "mod", className: "key key--op" },
-  { label: "1", action: "1", className: "key" },
-  { label: "2", action: "2", className: "key" },
-  { label: "3", action: "3", className: "key" },
-  { label: "-", action: "-", className: "key key--op" },
-  { label: "%", action: "%", className: "key key--op" },
-  { label: "0", action: "0", className: "key key--double" },
-  { label: ".", action: ".", className: "key" },
-  { label: "+/-", action: "negate", className: "key key--func" },
-  { label: "+", action: "+", className: "key key--op" },
-  { label: "=", action: "equals", className: "key key--tall key--op" },
-  { label: ",", action: ",", className: "key key--func" },
+const KEY_ROWS = [
+  [
+    { label: "SHIFT", action: "shift", className: "key key--func" },
+    { label: "DEG", action: "angle", className: "key key--func" },
+    { label: "MC", action: "mc", className: "key key--accent" },
+    { label: "MR", action: "mr", className: "key key--accent" },
+    { label: "M+", action: "mplus", className: "key key--accent" },
+    { label: "M-", action: "mminus", className: "key key--accent" },
+  ],
+  [
+    { label: "sin", alt: "asin", insert: "sin(", altInsert: "asin(" },
+    { label: "cos", alt: "acos", insert: "cos(", altInsert: "acos(" },
+    { label: "tan", alt: "atan", insert: "tan(", altInsert: "atan(" },
+    { label: "log", alt: "10^x", insert: "log(", altInsert: "pow10(" },
+    { label: "ln", alt: "e^x", insert: "ln(", altInsert: "exp(" },
+    { label: "√", alt: "x²", insert: "sqrt(", altInsert: "square(" },
+  ],
+  [
+    { label: "π", action: "pi", className: "key key--func" },
+    { label: "e", action: "e", className: "key key--func" },
+    { label: "Ans", action: "Ans", className: "key key--func" },
+    { label: "(", action: "(", className: "key key--func" },
+    { label: ")", action: ")", className: "key key--func" },
+    { label: "DEL", action: "del", className: "key key--danger" },
+  ],
+  [
+    { label: "7", action: "7", className: "key" },
+    { label: "8", action: "8", className: "key" },
+    { label: "9", action: "9", className: "key" },
+    { label: "÷", action: "/", className: "key key--op" },
+    { label: "AC", action: "ac", className: "key key--danger" },
+    { label: "^", action: "^", shiftAction: "root(", secondary: "root", className: "key key--op" },
+  ],
+  [
+    { label: "4", action: "4", className: "key" },
+    { label: "5", action: "5", className: "key" },
+    { label: "6", action: "6", className: "key" },
+    { label: "×", action: "*", className: "key key--op" },
+    { label: "!", action: "!", shiftAction: "mod(", secondary: "mod", className: "key key--op" },
+  ],
+  [
+    { label: "1", action: "1", className: "key" },
+    { label: "2", action: "2", className: "key" },
+    { label: "3", action: "3", className: "key" },
+    { label: "-", action: "-", className: "key key--op" },
+    { label: "%", action: "%", className: "key key--op" },
+  ],
+  [
+    { label: "0", action: "0", className: "key key--double" },
+    { label: ".", action: ".", className: "key" },
+    { label: "+/-", action: "negate", className: "key key--func" },
+    { label: "+", action: "+", className: "key key--op" },
+    { label: ",", action: ",", className: "key key--func" },
+    { label: "=", action: "equals", className: "key key--op" },
+  ],
 ];
 
 const state = {
@@ -134,23 +145,25 @@ function bindEvents() {
 }
 
 function renderKeypad() {
-  const functionRow = FUNCTION_BUTTONS.map((key) => {
-    return `
-      <button class="key key--func" type="button" data-action="${escapeHtml(key.insert)}" data-shift-action="${escapeHtml(key.altInsert)}">
-        <span class="key__primary">${escapeHtml(key.label)}</span>
-        <span class="key__secondary">${escapeHtml(key.alt)}</span>
-      </button>
-    `;
-  }).join("");
+  elements.keypad.innerHTML = KEY_ROWS.map((row) => {
+    return `<div class="key-row">${row.map((key) => {
+      if (key.insert) {
+        return `
+          <button class="key key--func" type="button" data-action="${escapeHtml(key.insert)}" data-shift-action="${escapeHtml(key.altInsert)}">
+            <span class="key__primary">${escapeHtml(key.label)}</span>
+            <span class="key__secondary">${escapeHtml(key.alt)}</span>
+          </button>
+        `;
+      }
 
-  elements.keypad.innerHTML = functionRow + KEY_LAYOUT.map((key) => {
-    const secondary = key.secondary ?? "";
-    return `
-      <button class="${key.className}" type="button" data-action="${escapeHtml(key.action)}" ${key.shiftAction ? `data-shift-action="${escapeHtml(key.shiftAction)}"` : ""}>
-        <span class="key__primary">${escapeHtml(key.label)}</span>
-        ${secondary ? `<span class="key__secondary">${escapeHtml(secondary)}</span>` : ""}
-      </button>
-    `;
+      const secondary = key.secondary ?? "";
+      return `
+        <button class="${key.className}" type="button" data-action="${escapeHtml(key.action)}" ${key.shiftAction ? `data-shift-action="${escapeHtml(key.shiftAction)}"` : ""}>
+          <span class="key__primary">${escapeHtml(key.label)}</span>
+          ${secondary ? `<span class="key__secondary">${escapeHtml(secondary)}</span>` : ""}
+        </button>
+      `;
+    }).join("")}</div>`;
   }).join("");
 }
 

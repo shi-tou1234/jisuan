@@ -45,47 +45,61 @@ const MODE_HINTS = {
   tools: "工具模式：分数、DMS、极直坐标、素因数、常数和单位换算。",
 };
 
-const SCIENTIFIC_KEYS = [
-  { label: "反选", action: "shift", tip: "开启副功能；下一次按键会使用按钮右上角的替代功能。", className: "key key--func" },
-  { label: "角度", action: "angle", tip: "在 度 / 弧度 / 百分度 之间切换。", className: "key key--func" },
-  { label: "清内存", action: "mc", tip: "清空内存寄存器。", className: "key key--accent" },
-  { label: "取内存", action: "mr", tip: "把当前内存值插入到表达式中。", className: "key key--accent" },
-  { label: "内存加", action: "mplus", tip: "把当前结果加入内存。", className: "key key--accent" },
-  { label: "内存减", action: "mminus", tip: "把当前结果从内存中减去。", className: "key key--accent" },
-  { label: "正弦", action: "sin(", shiftAction: "asin(", secondary: "反正弦", tip: "输入正弦函数。开启副功能后可输入反正弦。", className: "key key--func" },
-  { label: "余弦", action: "cos(", shiftAction: "acos(", secondary: "反余弦", tip: "输入余弦函数。开启副功能后可输入反余弦。", className: "key key--func" },
-  { label: "正切", action: "tan(", shiftAction: "atan(", secondary: "反正切", tip: "输入正切函数。开启副功能后可输入反正切。", className: "key key--func" },
-  { label: "常对数", action: "log(", shiftAction: "pow10(", secondary: "10 的幂", tip: "输入常用对数。副功能可输入 10 的幂。", className: "key key--func" },
-  { label: "自然对数", action: "ln(", shiftAction: "exp(", secondary: "e 的幂", tip: "输入自然对数。副功能可输入 e 的幂。", className: "key key--func" },
-  { label: "平方根", action: "sqrt(", shiftAction: "square(", secondary: "平方", tip: "输入平方根。副功能可快速输入平方。", className: "key key--func" },
-  { label: "π", action: "pi", tip: "插入圆周率 π。", className: "key key--func" },
-  { label: "e", action: "e", tip: "插入自然常数 e。", className: "key key--func" },
-  { label: "结果", action: "Ans", tip: "插入上一次计算结果。", className: "key key--func" },
-  { label: "(", action: "(", tip: "插入左括号。", className: "key key--func" },
-  { label: ")", action: ")", tip: "插入右括号。", className: "key key--func" },
-  { label: "删除", action: "del", tip: "删除表达式最后一个字符。", className: "key key--danger" },
-  { label: "7", action: "7", tip: "输入数字 7。", className: "key" },
-  { label: "8", action: "8", tip: "输入数字 8。", className: "key" },
-  { label: "9", action: "9", tip: "输入数字 9。", className: "key" },
-  { label: "除", action: "/", tip: "输入除号。", className: "key key--op" },
-  { label: "清空", action: "ac", tip: "清空当前表达式。", className: "key key--danger" },
-  { label: "幂", action: "^", shiftAction: "root(", secondary: "开方", tip: "输入幂运算。副功能可输入开方。", className: "key key--op" },
-  { label: "4", action: "4", tip: "输入数字 4。", className: "key" },
-  { label: "5", action: "5", tip: "输入数字 5。", className: "key" },
-  { label: "6", action: "6", tip: "输入数字 6。", className: "key" },
-  { label: "乘", action: "*", tip: "输入乘号。", className: "key key--op" },
-  { label: "阶乘", action: "!", shiftAction: "mod(", secondary: "取模", tip: "输入阶乘。副功能可输入取模函数。", className: "key key--op" },
-  { label: "1", action: "1", tip: "输入数字 1。", className: "key" },
-  { label: "2", action: "2", tip: "输入数字 2。", className: "key" },
-  { label: "3", action: "3", tip: "输入数字 3。", className: "key" },
-  { label: "减", action: "-", tip: "输入减号。", className: "key key--op" },
-  { label: "百分比", action: "%", tip: "输入百分比运算。", className: "key key--op" },
-  { label: "0", action: "0", tip: "输入数字 0。", className: "key key--double" },
-  { label: "小数点", action: ".", tip: "输入小数点。", className: "key" },
-  { label: "正负", action: "negate", tip: "切换当前项的正负号。", className: "key key--func" },
-  { label: "加", action: "+", tip: "输入加号。", className: "key key--op" },
-  { label: "=", action: "equals", tip: "执行计算并保存到记录。", className: "key key--tall key--op" },
-  { label: "逗号", action: ",", tip: "输入函数参数分隔符。", className: "key key--func" },
+const SCIENTIFIC_KEY_ROWS = [
+  [
+    { label: "SHIFT", action: "shift", tip: "开启副功能；下一次按键会使用按钮右上角的替代功能。", className: "key key--func" },
+    { label: "°", action: "angle", tip: "在 度 / 弧度 / 百分度 之间切换。", className: "key key--func" },
+    { label: "MC", action: "mc", tip: "清空内存寄存器。", className: "key key--accent" },
+    { label: "MR", action: "mr", tip: "把当前内存值插入到表达式中。", className: "key key--accent" },
+    { label: "M+", action: "mplus", tip: "把当前结果加入内存。", className: "key key--accent" },
+    { label: "M-", action: "mminus", tip: "把当前结果从内存中减去。", className: "key key--accent" },
+  ],
+  [
+    { label: "sin", action: "sin(", shiftAction: "asin(", secondary: "asin", tip: "输入正弦函数。开启副功能后可输入反正弦。", className: "key key--func" },
+    { label: "cos", action: "cos(", shiftAction: "acos(", secondary: "acos", tip: "输入余弦函数。开启副功能后可输入反余弦。", className: "key key--func" },
+    { label: "tan", action: "tan(", shiftAction: "atan(", secondary: "atan", tip: "输入正切函数。开启副功能后可输入反正切。", className: "key key--func" },
+    { label: "log", action: "log(", shiftAction: "pow10(", secondary: "10^x", tip: "输入常用对数。副功能可输入 10 的幂。", className: "key key--func" },
+    { label: "ln", action: "ln(", shiftAction: "exp(", secondary: "e^x", tip: "输入自然对数。副功能可输入 e 的幂。", className: "key key--func" },
+    { label: "√", action: "sqrt(", shiftAction: "square(", secondary: "x²", tip: "输入平方根。副功能可快速输入平方。", className: "key key--func" },
+  ],
+  [
+    { label: "π", action: "pi", tip: "插入圆周率 π。", className: "key key--func" },
+    { label: "e", action: "e", tip: "插入自然常数 e。", className: "key key--func" },
+    { label: "Ans", action: "Ans", tip: "插入上一次计算结果。", className: "key key--func" },
+    { label: "(", action: "(", tip: "插入左括号。", className: "key key--func" },
+    { label: ")", action: ")", tip: "插入右括号。", className: "key key--func" },
+    { label: "⌫", action: "del", tip: "删除表达式最后一个字符。", className: "key key--danger" },
+  ],
+  [
+    { label: "7", action: "7", tip: "输入数字 7。", className: "key" },
+    { label: "8", action: "8", tip: "输入数字 8。", className: "key" },
+    { label: "9", action: "9", tip: "输入数字 9。", className: "key" },
+    { label: "÷", action: "/", tip: "输入除号。", className: "key key--op" },
+    { label: "AC", action: "ac", tip: "清空当前表达式。", className: "key key--danger" },
+    { label: "^", action: "^", shiftAction: "root(", secondary: "开方", tip: "输入幂运算。副功能可输入开方。", className: "key key--op" },
+  ],
+  [
+    { label: "4", action: "4", tip: "输入数字 4。", className: "key" },
+    { label: "5", action: "5", tip: "输入数字 5。", className: "key" },
+    { label: "6", action: "6", tip: "输入数字 6。", className: "key" },
+    { label: "×", action: "*", tip: "输入乘号。", className: "key key--op" },
+    { label: "!", action: "!", shiftAction: "mod(", secondary: "mod", tip: "输入阶乘。副功能可输入取模函数。", className: "key key--op" },
+  ],
+  [
+    { label: "1", action: "1", tip: "输入数字 1。", className: "key" },
+    { label: "2", action: "2", tip: "输入数字 2。", className: "key" },
+    { label: "3", action: "3", tip: "输入数字 3。", className: "key" },
+    { label: "-", action: "-", tip: "输入减号。", className: "key key--op" },
+    { label: "%", action: "%", tip: "输入百分比运算。", className: "key key--op" },
+  ],
+  [
+    { label: "0", action: "0", tip: "输入数字 0。", className: "key key--double" },
+    { label: ".", action: ".", tip: "输入小数点。", className: "key" },
+    { label: "+/-", action: "negate", tip: "切换当前项的正负号。", className: "key key--func" },
+    { label: "+", action: "+", tip: "输入加号。", className: "key key--op" },
+    { label: ",", action: ",", tip: "输入函数参数分隔符。", className: "key key--func" },
+    { label: "=", action: "equals", tip: "执行计算并保存到记录。", className: "key key--op" },
+  ],
 ];
 
 const state = {
@@ -1657,14 +1671,16 @@ function renderModeTabs() {
 }
 
 function renderKeypad() {
-  elements.keypad.innerHTML = SCIENTIFIC_KEYS.map((key) => {
-    const secondary = key.secondary ? `<span class="key__secondary">${escapeHtml(key.secondary)}</span>` : "";
-    return `
-      <button class="${key.className}" type="button" data-action="${escapeHtml(key.action)}" ${key.shiftAction ? `data-shift-action="${escapeHtml(key.shiftAction)}"` : ""} data-tip="${escapeHtml(key.tip)}">
-        <span class="key__primary">${escapeHtml(key.label)}</span>
-        ${secondary}
-      </button>
-    `;
+  elements.keypad.innerHTML = SCIENTIFIC_KEY_ROWS.map((row) => {
+    return `<div class="key-row">${row.map((key) => {
+      const secondary = key.secondary ? `<span class="key__secondary">${escapeHtml(key.secondary)}</span>` : "";
+      return `
+        <button class="${key.className}" type="button" data-action="${escapeHtml(key.action)}" ${key.shiftAction ? `data-shift-action="${escapeHtml(key.shiftAction)}"` : ""} data-tip="${escapeHtml(key.tip)}">
+          <span class="key__primary">${escapeHtml(key.label)}</span>
+          ${secondary}
+        </button>
+      `;
+    }).join("")}</div>`;
   }).join("");
   applyUiFilter();
 }
