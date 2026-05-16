@@ -791,6 +791,7 @@ function buildModeWorkspace() {
           <span class="mode-badge">历史：${state.history.length} 条</span>
           <span class="mode-badge">内存：${formatNumber(state.memory)}</span>
         </div>
+        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </div>
     `;
   }
@@ -1521,6 +1522,9 @@ function handleWorkspaceClick(target) {
     return;
   }
 
+  const commitResult = target.closest('[data-mode-action="commit-result"]');
+  if (commitResult) { commitEvaluation(); return; }
+
   const baseConvert = target.closest('[data-mode-action="convert-base"]');
   if (baseConvert) { convertAndPersistBase(); return; }
 
@@ -2106,6 +2110,7 @@ function buildModeWorkspace() {
           <span class="mode-badge">历史：${state.history.length} 条</span>
           <span class="mode-badge">内存：${formatNumber(state.memory)}</span>
         </div>
+        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </div>
       <div class="module-card">
         <h3>使用提示</h3>
