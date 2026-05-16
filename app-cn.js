@@ -2424,13 +2424,6 @@ function handleModeWorkspaceClick(event) {
       handleAdvancedAction(advAction.dataset.advAction);
       return;
     }
-
-    const advTab = target.closest("[data-adv-tab]");
-    if (advTab) {
-      state.advSubMode = advTab.dataset.advTab;
-      renderModeWorkspace();
-      return;
-    }
   } catch (e) {
     setHoverHint("操作出错: " + e.message);
   }
