@@ -703,6 +703,7 @@ body::before {
   max-height: 50vh;
   overflow: auto;
   padding-right: 4px;
+  min-width: 0;
 }
 
 .mode-copy {
@@ -883,6 +884,7 @@ select:focus option:hover {
 .base-layout {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .matrix-columns {
@@ -937,7 +939,9 @@ select:focus option:hover {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
   line-height: 1.5;
+  max-width: 100%;
 }
 
 .stats-list {

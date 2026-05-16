@@ -893,6 +893,7 @@ function renderEquationPanel() {
         <label class="field-card"><span class="field-label">不等号</span><select id="ineqSign" class="base-select">${[">=", ">", "<=", "<"].map((s) => `<option value="${s}" ${state.equation.inequalitySign === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || state.equation.linearResult || state.equation.polyResult || "点击按钮执行对应功能")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -919,6 +920,7 @@ function renderVectorPanel() {
         <button class="mode-action" type="button" data-adv-action="vector-angle">夹角</button>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -943,6 +945,7 @@ function renderCalculusPanel() {
         <label class="field-card"><span class="field-label">Σ 上限</span><input id="sigmaUpper" class="stats-input" type="number" step="1" value="${escapeAttr(state.calculus.sigmaUpper)}" /></label>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -983,6 +986,7 @@ function renderLogicPanel() {
         <div class="summary-card"><span class="summary-label">XNOR</span><strong>${formatLogicValue(results.xnor, base)}</strong></div>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "点击按钮查看运算结果")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -1012,6 +1016,7 @@ function renderTablePanel() {
         <button class="mode-action is-active" type="button" data-adv-action="table">生成表格</button>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -1523,7 +1528,25 @@ function handleWorkspaceClick(target) {
   }
 
   const commitResult = target.closest('[data-mode-action="commit-result"]');
-  if (commitResult) { commitEvaluation(); return; }
+  if (commitResult) {
+    if (state.mode === "standard") {
+      commitEvaluation();
+    } else if (state.mode === "matrix") {
+      const activeOp = document.querySelector("[data-matrix-op].is-active, .mode-action.is-active");
+      if (activeOp) applyMatrixOperation(activeOp.dataset.matrixOp);
+    } else if (state.mode === "stats") {
+      handleStatsAction("add");
+    } else if (state.mode === "complex") {
+      const activeOp = document.querySelector("[data-complex-op].is-active, .complex-op-btn.is-active");
+      if (activeOp) applyComplexOperation(activeOp.dataset.complexOp);
+    } else if (state.mode === "base") {
+      convertAndPersistBase();
+    } else if (state.mode === "equation" || state.mode === "vector" || state.mode === "calculus" || state.mode === "logic" || state.mode === "table" || state.mode === "tools") {
+      const activeAction = document.querySelector("[data-adv-action].is-active, .mode-action.is-active");
+      if (activeAction) handleAdvancedAction(activeAction.dataset.advAction);
+    }
+    return;
+  }
 
   const baseConvert = target.closest('[data-mode-action="convert-base"]');
   if (baseConvert) { convertAndPersistBase(); return; }
@@ -2172,6 +2195,7 @@ function buildModeWorkspace() {
           <h3>结果</h3>
           <p class="matrix-status">${escapeHtml(state.matrix.operation || "请先选择一个矩阵运算。")}</p>
           <pre id="matrixResult" class="result-pre">${escapeHtml(state.matrix.result || "尚未计算")}</pre>
+          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2202,6 +2226,7 @@ function buildModeWorkspace() {
         <section class="result-panel">
           <h3>统计结果</h3>
           <div class="summary-grid">${renderStatsSummary()}</div>
+          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2247,6 +2272,7 @@ function buildModeWorkspace() {
           <h3>结果</h3>
           <p class="complex-status">${escapeHtml(state.complex.operation || "请选择一个复数运算。")}</p>
           <pre id="complexResult" class="result-pre">${escapeHtml(formatComplexResult(state.complex.result))}</pre>
+          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2295,6 +2321,7 @@ function buildModeWorkspace() {
         <p class="base-status">${escapeHtml(state.base.source)} → ${escapeHtml(state.base.target)}</p>
         <pre id="baseResult" class="result-pre">${escapeHtml(state.base.result || "尚未转换")}</pre>
         <div class="base-output-grid">${renderBaseSummary()}</div>
+        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </section>
     </div>
   `;
