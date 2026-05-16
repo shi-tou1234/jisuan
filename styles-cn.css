@@ -752,6 +752,33 @@ body::before {
   text-transform: uppercase;
 }
 
+.mode-result-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 10px 24px;
+  border: 1px solid rgba(243, 197, 109, 0.35);
+  border-radius: 999px;
+  color: #101614;
+  background: linear-gradient(180deg, #f5d68f 0%, #d89d31 100%);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 2px 8px rgba(243, 197, 109, 0.25);
+}
+
+.mode-result-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(243, 197, 109, 0.35);
+}
+
+.mode-result-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 4px rgba(243, 197, 109, 0.2);
+}
 
 .mode-badge,
 .mode-action,
