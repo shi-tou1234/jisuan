@@ -876,6 +876,7 @@ function renderEquationPanel() {
         <label class="field-card"><span class="field-label">不等号</span><select id="ineqSign" class="base-select">${[">=", ">", "<=", "<"].map((s) => `<option value="${s}" ${state.equation.inequalitySign === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || state.equation.linearResult || state.equation.polyResult || "点击按钮执行对应功能")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
     </section>
   `;
 }
@@ -902,6 +903,7 @@ function renderVectorPanel() {
         <button class="mode-action" type="button" data-adv-action="vector-angle">夹角</button>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -926,6 +928,7 @@ function renderCalculusPanel() {
         <label class="field-card"><span class="field-label">Σ 上限</span><input id="sigmaUpper" class="stats-input" type="number" step="1" value="${escapeAttr(state.calculus.sigmaUpper)}" /></label>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -966,6 +969,7 @@ function renderLogicPanel() {
         <div class="summary-card"><span class="summary-label">XNOR</span><strong>${formatLogicValue(results.xnor, base)}</strong></div>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "点击按钮查看运算结果")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -995,6 +999,7 @@ function renderTablePanel() {
         <button class="mode-action is-active" type="button" data-adv-action="table">生成表格</button>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
@@ -1033,6 +1038,7 @@ function renderToolsPanel() {
         <label class="field-card"><span class="field-label">单位值</span><input id="unitInput" class="stats-input" type="number" step="any" value="${escapeAttr(state.tools.unitInput)}" /></label>
       </div>
       <pre id="advancedResult" class="result-pre">${escapeHtml(state.tools.unitResult || "")}</pre>
+      <button class="mode-result-btn" type="button" data-mode-action="commit-result" style="margin-top:12px">得出结果</button>
     </section>
   `;
 }
