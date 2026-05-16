@@ -113,7 +113,7 @@ const state = {
   ans: 0,
   justEvaluated: false,
   uiSearch: "",
-  advSubMode: "equation",
+
   matrix: {
     size: 2,
     activeMatrix: "a",
@@ -326,7 +326,6 @@ function hydrateState() {
   state.shift = storedShift === "true";
   if (storedMode && MODE_LABELS[storedMode]) state.mode = storedMode;
   if (["equation", "vector", "calculus", "logic", "table", "tools"].includes(state.mode)) {
-    state.advSubMode = state.mode;
   }
 
   hydrateMatrix();
@@ -791,7 +790,6 @@ function buildModeWorkspace() {
           <span class="mode-badge">历史：${state.history.length} 条</span>
           <span class="mode-badge">内存：${formatNumber(state.memory)}</span>
         </div>
-        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </div>
     `;
   }
@@ -838,22 +836,9 @@ function renderMatrixWorkspaceV2() {
 }
 
 function renderAdvancedWorkspace() {
-  const tabs = [
-    { id: "equation", label: "方程" },
-    { id: "vector", label: "向量" },
-    { id: "calculus", label: "微积分" },
-    { id: "logic", label: "逻辑" },
-    { id: "table", label: "表格" },
-    { id: "tools", label: "工具" },
-  ];
-  const activeTab = state.advSubMode || "equation";
-
   return `
     <div class="layout-stack">
-      <div class="adv-tabs">
-        ${tabs.map((t) => `<button class="adv-tab ${activeTab === t.id ? "is-active" : ""}" type="button" data-adv-tab="${t.id}">${t.label}</button>`).join("")}
-      </div>
-      <div class="adv-panel">${renderAdvancedPanel(activeTab)}</div>
+      <div class="adv-panel">${renderAdvancedPanel(state.mode)}</div>
     </div>
   `;
 }
@@ -1522,48 +1507,12 @@ function handleWorkspaceClick(target) {
     return;
   }
 
-  const commitResult = target.closest('[data-mode-action="commit-result"]');
-  if (commitResult) {
-    if (state.mode === "standard") {
-      commitEvaluation();
-    } else if (state.mode === "matrix") {
-      const activeOp = document.querySelector("[data-matrix-op].is-active, .mode-action.is-active");
-      if (activeOp) applyMatrixOperation(activeOp.dataset.matrixOp);
-    } else if (state.mode === "stats") {
-      handleStatsAction("add");
-    } else if (state.mode === "complex") {
-      const activeOp = document.querySelector("[data-complex-op].is-active, .complex-op-btn.is-active");
-      if (activeOp) applyComplexOperation(activeOp.dataset.complexOp);
-    } else if (state.mode === "base") {
-      convertAndPersistBase();
-    } else if (state.mode === "equation" || state.mode === "vector" || state.mode === "calculus" || state.mode === "logic" || state.mode === "table" || state.mode === "tools") {
-      const activeAction = document.querySelector("[data-adv-action].is-active, .mode-action.is-active");
-      if (activeAction) handleAdvancedAction(activeAction.dataset.advAction);
-    }
-    return;
-  }
-
   const baseConvert = target.closest('[data-mode-action="convert-base"]');
   if (baseConvert) { convertAndPersistBase(); return; }
 
   const advAction = target.closest("[data-adv-action]");
   if (advAction) { handleAdvancedAction(advAction.dataset.advAction); return; }
 
-  const advTab = target.closest("[data-adv-tab]");
-  if (advTab) {
-    const newMode = advTab.dataset.advTab;
-    state.advSubMode = newMode;
-    if (state.mode !== newMode) {
-      state.mode = newMode;
-      state.shift = false;
-      persistMode();
-      persistShift();
-      updateDisplay();
-      renderModeTabs();
-    }
-    renderModeWorkspace();
-    return;
-  }
 }
 
 function handleGlobalInput(event) {
@@ -1680,10 +1629,6 @@ function switchMode(mode) {
   if (!MODE_LABELS[mode]) return;
   state.mode = mode;
   state.shift = false;
-  const advancedModes = ["equation", "vector", "calculus", "logic", "table", "tools"];
-  if (advancedModes.includes(mode)) {
-    state.advSubMode = mode;
-  }
   persistMode();
   persistShift();
   updateDisplay();
@@ -2137,7 +2082,6 @@ function buildModeWorkspace() {
           <span class="mode-badge">历史：${state.history.length} 条</span>
           <span class="mode-badge">内存：${formatNumber(state.memory)}</span>
         </div>
-        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </div>
       <div class="module-card">
         <h3>使用提示</h3>
@@ -2199,7 +2143,6 @@ function buildModeWorkspace() {
           <h3>结果</h3>
           <p class="matrix-status">${escapeHtml(state.matrix.operation || "请先选择一个矩阵运算。")}</p>
           <pre id="matrixResult" class="result-pre">${escapeHtml(state.matrix.result || "尚未计算")}</pre>
-          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2230,7 +2173,6 @@ function buildModeWorkspace() {
         <section class="result-panel">
           <h3>统计结果</h3>
           <div class="summary-grid">${renderStatsSummary()}</div>
-          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2276,7 +2218,6 @@ function buildModeWorkspace() {
           <h3>结果</h3>
           <p class="complex-status">${escapeHtml(state.complex.operation || "请选择一个复数运算。")}</p>
           <pre id="complexResult" class="result-pre">${escapeHtml(formatComplexResult(state.complex.result))}</pre>
-          <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
         </section>
       </div>
     `;
@@ -2325,7 +2266,6 @@ function buildModeWorkspace() {
         <p class="base-status">${escapeHtml(state.base.source)} → ${escapeHtml(state.base.target)}</p>
         <pre id="baseResult" class="result-pre">${escapeHtml(state.base.result || "尚未转换")}</pre>
         <div class="base-output-grid">${renderBaseSummary()}</div>
-        <button class="mode-result-btn" type="button" data-mode-action="commit-result">得出结果</button>
       </section>
     </div>
   `;
@@ -2458,13 +2398,6 @@ function handleModeWorkspaceClick(event) {
     const advAction = target.closest("[data-adv-action]");
     if (advAction) {
       handleAdvancedAction(advAction.dataset.advAction);
-      return;
-    }
-
-    const advTab = target.closest("[data-adv-tab]");
-    if (advTab) {
-      state.advSubMode = advTab.dataset.advTab;
-      renderModeWorkspace();
       return;
     }
   } catch (e) {
