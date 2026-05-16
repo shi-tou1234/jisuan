@@ -1556,7 +1556,16 @@ function handleWorkspaceClick(target) {
 
   const advTab = target.closest("[data-adv-tab]");
   if (advTab) {
-    state.advSubMode = advTab.dataset.advTab;
+    const newMode = advTab.dataset.advTab;
+    state.advSubMode = newMode;
+    if (state.mode !== newMode) {
+      state.mode = newMode;
+      state.shift = false;
+      persistMode();
+      persistShift();
+      updateDisplay();
+      renderModeTabs();
+    }
     renderModeWorkspace();
     return;
   }
