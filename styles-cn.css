@@ -1161,12 +1161,12 @@ select:focus option:hover {
   }
 
   .keypad {
-    gap: 5px;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .key--wide {
-    grid-column: span 2;
+    grid-column: span 3;
   }
 
   .key--double {
@@ -1174,24 +1174,25 @@ select:focus option:hover {
   }
 
   .key--tall {
-    grid-row: span 1;
-    min-height: 48px;
+    grid-row: span 2;
+    min-height: 96px;
+    align-self: stretch;
   }
 
   .key {
-    min-height: 48px;
-    padding: 6px 4px;
+    min-height: 44px;
+    padding: 5px 3px;
     border-radius: 10px;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     -webkit-tap-highlight-color: transparent;
   }
 
   .key--func .key__primary {
-    font-size: 0.74rem;
+    font-size: 0.7rem;
   }
 
   .key__secondary {
-    font-size: 0.48rem;
+    font-size: 0.46rem;
     top: 3px;
     left: 4px;
     right: 4px;
@@ -1300,30 +1301,36 @@ select:focus option:hover {
 
 @media (max-width: 420px) {
   .keypad {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 3px;
   }
 
   .key--wide {
-    grid-column: span 2;
+    grid-column: span 3;
   }
 
   .key--double {
     grid-column: span 2;
   }
 
-  .key {
-    min-height: 44px;
-    padding: 5px 3px;
-    font-size: 0.74rem;
+  .key--tall {
+    grid-row: span 2;
+    min-height: 90px;
+    align-self: stretch;
   }
 
-  .key--func .key__primary {
+  .key {
+    min-height: 42px;
+    padding: 4px 2px;
     font-size: 0.7rem;
   }
 
+  .key--func .key__primary {
+    font-size: 0.66rem;
+  }
+
   .key__secondary {
-    font-size: 0.44rem;
+    font-size: 0.42rem;
     top: 2px;
     left: 3px;
     right: 3px;
