@@ -3,19 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="卡西欧风格中文科学计算器：标准运算、方程、矩阵、向量、统计、微积分、复数、进制转换与逻辑运算。" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; form-action 'none'; base-uri 'none'" />
     <title>卡西欧 991 计算台</title>
     <link rel="stylesheet" href="styles-cn.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">卡西欧风格科学计算器</p>
-          <h1>卡西欧 991 计算台</h1>
-        </div>
-        <p class="hero-copy">面向日常运算、三角函数、矩阵、统计、复数和进制转换的中文计算工作台。</p>
-      </section>
-
       <section class="calculator" aria-label="科学计算器">
         <header class="display-panel">
           <div class="display-main">
@@ -67,18 +61,18 @@
           </div>
         </section>
 
-        <nav class="mode-tabs" aria-label="模式切换">
-          <button class="mode-tab is-active" type="button" data-mode="standard" data-tip="标准模式：表达式、常量、函数和记忆运算">标准</button>
-          <button class="mode-tab" type="button" data-mode="equation" data-tip="方程模式：线性方程组、多项式、不等式、SOLVE、比例式">方程</button>
-          <button class="mode-tab" type="button" data-mode="matrix" data-tip="矩阵模式：加减乘、转置、行列式和逆矩阵">矩阵</button>
-          <button class="mode-tab" type="button" data-mode="vector" data-tip="向量模式：向量加减、点积、叉积、模长、夹角">向量</button>
-          <button class="mode-tab" type="button" data-mode="stats" data-tip="统计模式：录入数据并查看均值、方差和标准差">统计</button>
-          <button class="mode-tab" type="button" data-mode="calculus" data-tip="微积分模式：数值微分、积分与Σ求和">微积分</button>
-          <button class="mode-tab" type="button" data-mode="complex" data-tip="复数模式：四则运算、共轭、模长和辐角">复数</button>
-          <button class="mode-tab" type="button" data-mode="base" data-tip="进制模式：二、八、十、十六进制之间转换">进制</button>
-          <button class="mode-tab" type="button" data-mode="logic" data-tip="逻辑模式：AND、OR、NOT、XOR、XNOR">逻辑</button>
-          <button class="mode-tab" type="button" data-mode="table" data-tip="表格模式：函数表与5×45电子表格">表格</button>
-          <button class="mode-tab" type="button" data-mode="tools" data-tip="工具模式：分数、DMS、极直坐标、常数、单位换算等">工具</button>
+        <nav class="mode-tabs" role="tablist" aria-label="模式切换">
+          <button class="mode-tab is-active" role="tab" aria-selected="true" aria-controls="modeWorkspace" type="button" data-mode="standard" data-tip="标准模式：表达式、常量、函数和记忆运算">标准</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="equation" data-tip="方程模式：线性方程组、多项式、不等式、SOLVE、比例式">方程</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="matrix" data-tip="矩阵模式：加减乘、转置、行列式和逆矩阵">矩阵</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="vector" data-tip="向量模式：v1/v2 加减、点积、叉积、模长、夹角">向量</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="stats" data-tip="统计模式：录入数据并查看均值、方差和标准差">统计</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="calculus" data-tip="微积分模式：数值微分、积分与Σ求和">微积分</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="complex" data-tip="复数模式：四则运算、共轭、模长和辐角">复数</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="base" data-tip="进制模式：二、八、十、十六进制之间转换">进制</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="logic" data-tip="逻辑模式：AND、OR、NOT、XOR、XNOR">逻辑</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="table" data-tip="表格模式：输入 f(x)/g(x) 与范围步长，生成函数值表">表格</button>
+          <button class="mode-tab" role="tab" aria-selected="false" aria-controls="modeWorkspace" type="button" data-mode="tools" data-tip="工具模式：分数、DMS、极直坐标、常数、单位换算等">工具</button>
         </nav>
 
         <div class="workspace">
