@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   history: "calc991cn.history",
   shift: "calc991cn.shift",
   mode: "calc991cn.mode",
+  tool: "calc991cn.tool",
   matrix: "calc991cn.matrix",
   equation: "calc991cn.equation",
   vector: "calc991cn.vector",
@@ -13,6 +14,9 @@ const STORAGE_KEYS = {
   complex: "calc991cn.complex",
   base: "calc991cn.base",
   logic: "calc991cn.logic",
+  boolean: "calc991cn.boolean",
+  labrec: "calc991cn.labrec",
+  dataproc: "calc991cn.dataproc",
   table: "calc991cn.table",
   tools: "calc991cn.tools",
 };
@@ -73,6 +77,13 @@ const MODE_LABELS = {
   logic: "逻辑",
   table: "表格",
   tools: "工具",
+};
+
+const TOOL_LABELS = {
+  calc: "科学计算器",
+  boolean: "布尔化简",
+  labrec: "实验记录",
+  dataproc: "数据处理",
 };
 
 const MODE_HINTS = {
@@ -149,6 +160,7 @@ const SCIENTIFIC_KEY_ROWS = [
 ];
 
 const state = {
+  tool: "calc",
   mode: "standard",
   expression: "",
   preview: "",
@@ -236,6 +248,43 @@ const state = {
     activeAction: "logic-and",
     result: "",
   },
+  boolean: {
+    varText: "A, B, C",
+    outCount: 1,
+    outNamesText: "",
+    variables: ["A", "B", "C"],
+    outputNames: ["Y1"],
+    rows: [],
+    tableReady: false,
+    results: null,
+    error: "",
+    activeAction: "boolean-generate",
+  },
+  labrec: {
+    projects: [],
+    activeId: "",
+    showCreate: false,
+    newName: "",
+    newFields: "测量次数, 电压 U/V, 电流 I/A",
+    rowDraft: [],
+    chartType: "line",
+    xCol: -1,
+    yCol: 1,
+    confirmDelete: false,
+    confirmClear: false,
+  },
+  dataproc: {
+    rawInput: "",
+    parsed: null,
+    chartType: "scatter",
+    xCol: 0,
+    yCol: 1,
+    fitType: "linear",
+    fit: null,
+    fitError: "",
+    error: "",
+    activeAction: "dp-analyze",
+  },
   table: {
     fx: "x^2",
     gx: "sin(x)",
@@ -285,12 +334,29 @@ const elements = {
   quickActions: document.querySelector(".quick-actions"),
   modeWorkspace: document.getElementById("modeWorkspace"),
   modeTabs: Array.from(document.querySelectorAll(".mode-tab")),
+  toolTabs: Array.from(document.querySelectorAll(".tool-tab")),
+  toolPages: {
+    calc: document.getElementById("tool-calc"),
+    boolean: document.getElementById("tool-boolean"),
+    labrec: document.getElementById("tool-labrec"),
+    dataproc: document.getElementById("tool-dataproc"),
+  },
+  toolRoots: {
+    boolean: document.getElementById("booleanRoot"),
+    labrec: document.getElementById("labrecRoot"),
+    dataproc: document.getElementById("dataprocRoot"),
+  },
 };
 
-initialize();
+// 当前激活的工作区容器：计算器页是模式工作区，工具页是各自的根节点
+function getActiveWorkspaceEl() {
+  if (state.tool !== "calc") return elements.toolRoots[state.tool] || null;
+  return elements.modeWorkspace;
+}
 
 function initialize() {
   hydrateState();
+  hydrateTool();
   renderKeypad();
   renderModeWorkspace();
   bindEvents();
@@ -301,6 +367,7 @@ function initialize() {
   setHoverHint(MODE_HINTS[state.mode]);
   evaluatePreview();
   applyUiFilter();
+  switchTool(state.tool);
 }
 
 function hydrateState() {
@@ -323,6 +390,10 @@ function hydrateState() {
   }
   state.shift = storedShift === "true";
   if (storedMode && MODE_LABELS[storedMode]) state.mode = storedMode;
+  // URL hash 深链接（如 index.html#dataproc）：工具页优先，其次是计算器模式
+  const hash = String((window.location || {}).hash || "").replace(/^#/, "");
+  if (TOOL_LABELS[hash]) state.tool = hash;
+  else if (MODE_LABELS[hash]) state.mode = hash;
 
   hydrateMatrix();
   hydrateEquation();
@@ -332,11 +403,16 @@ function hydrateState() {
   hydrateComplex();
   hydrateBase();
   hydrateLogic();
+  hydrateBoolean();
+  hydrateLabrec();
+  hydrateDataproc();
   hydrateTable();
   hydrateTools();
 }
 
 function getAdvancedResult(mode = state.mode) {
+  if (state.tool === "boolean") return state.boolean.error;
+  if (state.tool === "dataproc") return state.dataproc.error;
   switch (mode) {
     case "equation": return state.equation.result;
     case "vector": return state.vector.result;
@@ -350,6 +426,8 @@ function getAdvancedResult(mode = state.mode) {
 
 function setAdvancedResult(text) {
   const value = text ?? "";
+  if (state.tool === "boolean") { state.boolean.error = value; return; }
+  if (state.tool === "dataproc") { state.dataproc.error = value; return; }
   switch (state.mode) {
     case "equation": state.equation.result = value; break;
     case "vector": state.vector.result = value; break;
@@ -372,6 +450,9 @@ function compileExpression(expression) {
 }
 
 function persistAdvancedState() {
+  if (state.tool === "boolean") { persistBoolean(); return; }
+  if (state.tool === "labrec") { persistLabrec(); return; }
+  if (state.tool === "dataproc") { persistDataproc(); return; }
   switch (state.mode) {
     case "equation": persistEquation(); break;
     case "vector": persistVector(); break;
@@ -385,7 +466,44 @@ function persistAdvancedState() {
 function handleAdvancedAction(action) {
   try {
     setActiveAdvancedAction(action);
-    if (action === "solve-linear") {
+    if (action === "boolean-generate") {
+      runBooleanGenerate();
+    } else if (action.startsWith("boolean-preset-")) {
+      const parts = action.replace("boolean-preset-", "").split("-");
+      runBooleanPreset(Number(parts[0]) || 2, Number(parts[1]) || 1);
+    } else if (action === "boolean-all-0" || action === "boolean-all-1" || action === "boolean-all-x") {
+      runBooleanSetAll(action === "boolean-all-0" ? 0 : action === "boolean-all-1" ? 1 : "x");
+    } else if (action === "boolean-compute") {
+      runBooleanCompute();
+    } else if (action === "labrec-new") {
+      state.labrec.showCreate = !state.labrec.showCreate;
+      state.labrec.confirmDelete = false;
+      renderActiveWorkspace();
+    } else if (action === "labrec-create") {
+      runLabrecCreate();
+    } else if (action === "labrec-delete") {
+      runLabrecDelete();
+    } else if (action === "labrec-add-row") {
+      runLabrecAddRow();
+    } else if (action === "labrec-clear") {
+      runLabrecClear();
+    } else if (action === "labrec-export") {
+      runLabrecExport();
+    } else if (action === "dp-analyze") {
+      runDataprocAnalyze();
+    } else if (action === "dp-demo") {
+      state.dataproc.rawInput = DATAPROC_DEMO;
+      runDataprocAnalyze();
+    } else if (action === "dp-clear") {
+      state.dataproc.rawInput = "";
+      state.dataproc.parsed = null;
+      state.dataproc.fit = null;
+      state.dataproc.fitError = "";
+      state.dataproc.error = "";
+      renderActiveWorkspace();
+    } else if (action === "dp-export-image") {
+      runDataprocExportImage();
+    } else if (action === "solve-linear") {
       const n = state.equation.linearSize;
       const rows = state.equation.linearRows && state.equation.linearRows.length === n ? state.equation.linearRows : defaultLinearRows(n);
       const solution = solveLinearSystem(rows);
@@ -581,11 +699,15 @@ function handleAdvancedAction(action) {
     setAdvancedResult(error.message || "计算失败");
   }
   persistAdvancedState();
-  refreshEquationWorkspace();
+  if (state.tool === "calc") refreshEquationWorkspace();
+  else refreshToolWorkspace(state.tool);
 }
 
 
 function setActiveAdvancedAction(action) {
+  if (state.tool === "boolean") { state.boolean.activeAction = action; return; }
+  if (state.tool === "labrec") { state.labrec.activeAction = action; return; }
+  if (state.tool === "dataproc") { state.dataproc.activeAction = action; return; }
   switch (state.mode) {
     case "equation":
       state.equation.activeAction = action;
@@ -1121,6 +1243,7 @@ function hydrateTools() {
 
 function bindEvents() {
   elements.modeTabs.forEach((button) => button.addEventListener("click", handleModeTabClick));
+  // 工具顶栏按钮在 handleGlobalClick 中委托处理
   if (elements.quickActions) {
     elements.quickActions.addEventListener("click", handleQuickActionClick);
   }
@@ -1147,6 +1270,7 @@ function bindEvents() {
   document.addEventListener("change", handleGlobalChange);
 
   window.addEventListener("pagehide", flushStorageWrites);
+  window.addEventListener("resize", handleChartResize);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushStorageWrites();
   });
@@ -1154,6 +1278,10 @@ function bindEvents() {
 
 function handleGlobalClick(event) {
   const target = event.target;
+
+  // 工具顶栏在所有栏目通用，用委托处理（直接绑定在部分内核上不触发）
+  const toolTab = target.closest(".tool-tab");
+  if (toolTab) { switchTool(toolTab.dataset.tool); return; }
 
   if (elements.keypad && elements.keypad.contains(target)) {
     const btn = target.closest("button[data-action]");
@@ -1177,7 +1305,8 @@ function handleGlobalClick(event) {
     return;
   }
 
-  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+  const activeWorkspace = getActiveWorkspaceEl();
+  if (!activeWorkspace || !activeWorkspace.contains(target)) return;
 
   handleWorkspaceClick(target);
 }
@@ -1230,6 +1359,31 @@ function handleWorkspaceClick(target) {
   const baseConvert = target.closest('[data-mode-action="convert-base"]');
   if (baseConvert) { convertAndPersistBase(); return; }
 
+  const copyBtn = target.closest("[data-copy-text]");
+  if (copyBtn) { copyTextToClipboard(copyBtn.dataset.copyText || "", copyBtn); return; }
+
+  const labRowDel = target.closest('[data-adv-action="labrec-del-row"]');
+  if (labRowDel) {
+    const project = labActiveProject();
+    if (project) {
+      project.rows.splice(Number(labRowDel.dataset.row), 1);
+      persistLabrec();
+      renderActiveWorkspace();
+    }
+    return;
+  }
+
+  const labPhotoDel = target.closest('[data-adv-action="labrec-del-photo"]');
+  if (labPhotoDel) {
+    const project = labActiveProject();
+    if (project) {
+      project.photos = project.photos.filter((p) => p.id !== labPhotoDel.dataset.photo);
+      persistLabrec();
+      renderActiveWorkspace();
+    }
+    return;
+  }
+
   const advAction = target.closest("[data-adv-action]");
   if (advAction) { handleAdvancedAction(advAction.dataset.advAction); return; }
 
@@ -1237,7 +1391,8 @@ function handleWorkspaceClick(target) {
 
 function handleGlobalInput(event) {
   const target = event.target;
-  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+  const activeWorkspace = getActiveWorkspaceEl();
+  if (!activeWorkspace || !activeWorkspace.contains(target)) return;
 
   switch (target.id) {
     case "statsInput": state.stats.input = target.value; persistStats(); break;
@@ -1263,6 +1418,12 @@ function handleGlobalInput(event) {
     case "v2z": if (state.vector.vectors.v2) state.vector.vectors.v2[2] = Number(target.value) || 0; persistVector(); break;
     case "logicA": state.logic.a = target.value; persistLogic(); break;
     case "logicB": state.logic.b = target.value; persistLogic(); break;
+    case "booleanVars": state.boolean.varText = target.value; persistBoolean(); updateBooleanVarHint(); break;
+    case "booleanOutCount": state.boolean.outCount = clampInt(target.value, 1, 10, 1); persistBoolean(); break;
+    case "booleanOutNames": state.boolean.outNamesText = target.value; persistBoolean(); break;
+    case "labNewName": state.labrec.newName = target.value; persistLabrec(); break;
+    case "labNewFields": state.labrec.newFields = target.value; persistLabrec(); break;
+    case "dpRawInput": state.dataproc.rawInput = target.value; persistDataproc(); break;
     case "tableFx": state.table.fx = target.value; persistTable(); break;
     case "tableGx": state.table.gx = target.value; persistTable(); break;
     case "tableStart": state.table.start = target.value; persistTable(); break;
@@ -1289,11 +1450,46 @@ function handleGlobalInput(event) {
 
   const matrixInput = target.closest("[data-matrix-input]");
   if (matrixInput) { updateMatrixField(matrixInput); }
+
+  const labCell = target.closest("[data-lab-cell]");
+  if (labCell) {
+    const project = labActiveProject();
+    const [rowIdx, colIdx] = String(labCell.dataset.labCell || "").split(",").map(Number);
+    if (project && project.rows[rowIdx]) {
+      project.rows[rowIdx][colIdx] = target.value;
+      persistLabrec();
+    }
+  }
+
+  const labNewCell = target.closest("[data-lab-new-col]");
+  if (labNewCell) {
+    state.labrec.rowDraft[Number(labNewCell.dataset.labNewCol)] = target.value;
+  }
 }
 
 function handleGlobalChange(event) {
   const target = event.target;
-  if (!elements.modeWorkspace || !elements.modeWorkspace.contains(target)) return;
+  const activeWorkspace = getActiveWorkspaceEl();
+  if (!activeWorkspace || !activeWorkspace.contains(target)) return;
+
+  if (target.classList.contains("tt-select")) {
+    const row = state.boolean.rows[Number(target.dataset.ttRow)];
+    const outIdx = Number(target.dataset.ttOut);
+    if (row && row.outputs[outIdx] !== undefined) {
+      row.outputs[outIdx] = target.value === "1" ? 1 : target.value === "x" ? "x" : 0;
+      state.boolean.results = null;
+      const hint = document.getElementById("booleanDirtyHint");
+      if (hint) hint.textContent = "输出已修改，请重新点击「生成最简表达式」。";
+      persistBoolean();
+    }
+    return;
+  }
+
+  if (target.id === "labPhotoCamera" || target.id === "labPhotoGallery") {
+    handleLabPhotoFiles(target.files);
+    target.value = "";
+    return;
+  }
 
   switch (target.id) {
     case "matrixSizeSelect": {
@@ -1317,6 +1513,21 @@ function handleGlobalChange(event) {
     case "polyDegree": state.equation.polyDegree = Number(target.value); persistEquation(); break;
     case "ineqSign": state.equation.inequalitySign = target.value; persistEquation(); break;
     case "logicBase": state.logic.base = target.value; persistLogic(); renderModeWorkspace(); break;
+    case "labProjectSelect": {
+      state.labrec.activeId = target.value;
+      state.labrec.confirmDelete = false;
+      state.labrec.confirmClear = false;
+      persistLabrec();
+      renderActiveWorkspace();
+      break;
+    }
+    case "labChartType": state.labrec.chartType = target.value; persistLabrec(); renderActiveWorkspace(); break;
+    case "labXCol": state.labrec.xCol = Number(target.value); persistLabrec(); renderActiveWorkspace(); break;
+    case "labYCol": state.labrec.yCol = Number(target.value); persistLabrec(); renderActiveWorkspace(); break;
+    case "dpChartType": state.dataproc.chartType = target.value; persistDataproc(); renderActiveWorkspace(); break;
+    case "dpXCol": state.dataproc.xCol = Number(target.value); computeDataprocFit(); persistDataproc(); renderActiveWorkspace(); break;
+    case "dpYCol": state.dataproc.yCol = Number(target.value); computeDataprocFit(); persistDataproc(); renderActiveWorkspace(); break;
+    case "dpFitType": state.dataproc.fitType = target.value; computeDataprocFit(); persistDataproc(); renderActiveWorkspace(); break;
     case "constKey": state.tools.constantKey = target.value; persistTools(); break;
     case "unitGroup": {
       state.tools.unitGroup = target.value;
@@ -1607,7 +1818,10 @@ function applyUiFilter() {
   if (!query && !uiFilterActive) return;
   uiFilterActive = Boolean(query);
 
-  const selectors = ["#keypad button", ".mode-tabs button", ".quick-actions button", ".history-item", ".mode-workspace button"];
+  // 只在当前栏目内筛选，避免统计到隐藏工具页里的按钮
+  const selectors = state.tool === "calc"
+    ? ["#keypad button", ".mode-tabs button", ".quick-actions button", ".history-item", ".mode-workspace button"]
+    : [".tool-page.is-active button"];
   const buttons = document.querySelectorAll(selectors.join(", "));
   let visibleCount = 0;
 
@@ -1816,6 +2030,72 @@ function renderModeWorkspace() {
   updateModeSubtitle();
   syncWorkspaceButtonStates();
   applyUiFilter();
+}
+
+/* ===================== 工具栏目切换 ===================== */
+
+const TOOL_RENDERERS = {
+  boolean: renderBooleanWorkspace,
+  labrec: renderLabrecWorkspace,
+  dataproc: renderDataprocWorkspace,
+};
+
+function renderActiveWorkspace() {
+  if (state.tool === "calc") {
+    renderModeWorkspace();
+    return;
+  }
+  renderToolPage(state.tool);
+}
+
+function renderToolPage(tool) {
+  const root = elements.toolRoots[tool];
+  const renderer = TOOL_RENDERERS[tool];
+  if (!root || !renderer) return;
+  try {
+    root.innerHTML = renderer();
+  } catch (e) {
+    root.innerHTML = `<div class="mode-banner"><h3 class="mode-title">加载错误</h3><p class="mode-copy">页面渲染出错：${escapeHtml(e.message)}</p></div>`;
+  }
+  refreshToolWorkspace(tool);
+}
+
+function refreshToolWorkspace(tool) {
+  const root = elements.toolRoots[tool];
+  if (root) syncWorkspaceButtonStates(root);
+  if (tool === "labrec") requestAnimationFrame(drawLabChart);
+  if (tool === "dataproc") requestAnimationFrame(drawDataprocChart);
+}
+
+function switchTool(tool) {
+  if (!TOOL_LABELS[tool]) tool = "calc";
+  state.tool = tool;
+  persistTool();
+
+  elements.toolTabs.forEach((button) => {
+    const active = button.dataset.tool === tool;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  Object.entries(elements.toolPages).forEach(([key, page]) => {
+    if (page) page.classList.toggle("is-active", key === tool);
+  });
+
+  if (tool === "calc") {
+    updateDisplay();
+    syncWorkspaceButtonStates();
+    return;
+  }
+  renderToolPage(tool);
+}
+
+function persistTool() {
+  writeStorage(STORAGE_KEYS.tool, state.tool);
+}
+
+function hydrateTool() {
+  const stored = readStorage(STORAGE_KEYS.tool);
+  if (stored && TOOL_LABELS[stored]) state.tool = stored;
 }
 
 function buildModeWorkspace() {
@@ -2345,15 +2625,19 @@ function refreshToolsWorkspace() {
   refreshEquationWorkspace();
 }
 
-function syncWorkspaceButtonStates() {
-  if (!elements.modeWorkspace) return;
+function syncWorkspaceButtonStates(container = getActiveWorkspaceEl()) {
+  if (!container) return;
 
   const activeAdvAction = getActiveAdvancedAction();
-  syncButtonGroup(elements.modeWorkspace, "[data-matrix-op]", state.matrix.activeAction);
-  syncButtonGroup(elements.modeWorkspace, "[data-complex-op]", state.complex.activeAction);
-  syncButtonGroup(elements.modeWorkspace, "[data-stats-action]", state.stats.activeAction);
-  syncButtonGroup(elements.modeWorkspace, "[data-base-quick]", state.base.activeQuick);
-  syncButtonGroup(elements.modeWorkspace, "[data-adv-action]", activeAdvAction);
+  if (state.tool !== "calc") {
+    syncButtonGroup(container, "[data-adv-action]", activeAdvAction);
+    return;
+  }
+  syncButtonGroup(container, "[data-matrix-op]", state.matrix.activeAction);
+  syncButtonGroup(container, "[data-complex-op]", state.complex.activeAction);
+  syncButtonGroup(container, "[data-stats-action]", state.stats.activeAction);
+  syncButtonGroup(container, "[data-base-quick]", state.base.activeQuick);
+  syncButtonGroup(container, "[data-adv-action]", activeAdvAction);
 }
 
 function syncButtonGroup(container, selector, activeValue) {
@@ -2375,6 +2659,9 @@ function datasetKeyForSelector(selector) {
 }
 
 function getActiveAdvancedAction() {
+  if (state.tool === "boolean") return state.boolean.activeAction;
+  if (state.tool === "labrec") return state.labrec.activeAction;
+  if (state.tool === "dataproc") return state.dataproc.activeAction;
   switch (state.mode) {
     case "equation": return state.equation.activeAction;
     case "vector": return state.vector.activeAction;
@@ -3305,3 +3592,1581 @@ function hydrateMatrix() {
     state.matrix.matrices = { a: createMatrix(state.matrix.size), b: createMatrix(state.matrix.size), c: createMatrix(state.matrix.size), d: createMatrix(state.matrix.size) };
   }
 }
+
+/* ===================== 布尔化简（Quine-McCluskey 算法） ===================== */
+
+const BOOLEAN_MAX_VARS = 10;
+const BOOLEAN_MAX_OUTPUTS = 10;
+const QM_EXACT_MAX_TERMS = 24;
+const QM_EXACT_MAX_IMPLICANTS = 64;
+
+function qmPopcount(n) {
+  n = n - ((n >>> 1) & 0x55555555);
+  n = (n & 0x33333333) + ((n >>> 2) & 0x33333333);
+  return ((n + (n >>> 4)) & 0x0f0f0f0f) * 0x01010101 >>> 24;
+}
+
+function qmCovers(imp, term) {
+  return (term & ~imp.mask) === imp.value;
+}
+
+function qmCombine(a, b) {
+  if (a.mask !== b.mask) return null;
+  const diff = (a.value ^ b.value) & ~a.mask;
+  if (qmPopcount(diff) !== 1) return null;
+  return { value: a.value & ~diff, mask: a.mask | diff };
+}
+
+function qmGeneratePrimeImplicants(ones, dontCares) {
+  const all = new Set([...ones, ...dontCares]);
+  let current = new Map();
+  for (const term of all) current.set(`${term}:0`, { value: term, mask: 0 });
+
+  const primes = new Map();
+  while (current.size > 0) {
+    const used = new Set();
+    const nextLevel = new Map();
+    const buckets = new Map();
+    for (const imp of current.values()) {
+      const onesCount = qmPopcount(imp.value & ~imp.mask);
+      const key = `${onesCount}:${imp.mask}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(imp);
+    }
+
+    const keys = [...buckets.keys()].sort((x, y) => {
+      const [xo, xm] = x.split(":").map(Number);
+      const [yo, ym] = y.split(":").map(Number);
+      return xo - yo || xm - ym;
+    });
+
+    for (const key of keys) {
+      const [onesCount, mask] = key.split(":").map(Number);
+      const group = buckets.get(key);
+      const nextGroup = buckets.get(`${onesCount + 1}:${mask}`) || [];
+      for (const a of group) {
+        for (const b of nextGroup) {
+          const combined = qmCombine(a, b);
+          if (combined) {
+            used.add(`${a.value}:${a.mask}`);
+            used.add(`${b.value}:${b.mask}`);
+            nextLevel.set(`${combined.value}:${combined.mask}`, combined);
+          }
+        }
+      }
+    }
+
+    for (const [k, imp] of current) {
+      if (!used.has(k)) primes.set(k, imp);
+    }
+    current = nextLevel;
+  }
+  return [...primes.values()];
+}
+
+function qmCountLiterals(imp, numVars) {
+  return numVars - qmPopcount(imp.mask);
+}
+
+function qmPostSimplify(cover, ones) {
+  if (cover.length <= 1) return cover.slice();
+  const result = cover.slice();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < result.length; i += 1) {
+      const imp = result[i];
+      const termsOfImp = new Set([...ones].filter((t) => qmCovers(imp, t)));
+      const othersCovered = new Set();
+      for (let j = 0; j < result.length; j += 1) {
+        if (i === j) continue;
+        for (const t of ones) if (qmCovers(result[j], t)) othersCovered.add(t);
+      }
+      let allCovered = true;
+      for (const t of termsOfImp) {
+        if (!othersCovered.has(t)) {
+          allCovered = false;
+          break;
+        }
+      }
+      if (allCovered) {
+        result.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+function qmSelectCover(numVars, ones, primeImplicants) {
+  if (ones.size === 0) return [];
+
+  const onesArr = [...ones];
+  const chart = new Map();
+  for (const term of onesArr) {
+    const list = [];
+    for (const imp of primeImplicants) {
+      if (qmCovers(imp, term)) list.push(imp);
+    }
+    chart.set(term, list);
+  }
+
+  const selected = [];
+  const selectedKeys = new Set();
+  for (const term of onesArr) {
+    const list = chart.get(term);
+    if (list.length === 1 && !selectedKeys.has(`${list[0].value}:${list[0].mask}`)) {
+      selectedKeys.add(`${list[0].value}:${list[0].mask}`);
+      selected.push(list[0]);
+    }
+  }
+
+  const covered = new Set();
+  for (const imp of selected) {
+    for (const t of onesArr) if (qmCovers(imp, t)) covered.add(t);
+  }
+
+  const remainingTerms = onesArr.filter((t) => !covered.has(t));
+  if (!remainingTerms.length) return qmPostSimplify(selected, ones);
+
+  const remainingImplicants = primeImplicants.filter((imp) =>
+    remainingTerms.some((t) => qmCovers(imp, t))
+  );
+
+  if (remainingTerms.length <= QM_EXACT_MAX_TERMS && remainingImplicants.length <= QM_EXACT_MAX_IMPLICANTS) {
+    let best = null;
+    const termToImps = {};
+    for (const t of remainingTerms) {
+      termToImps[t] = remainingImplicants.filter((imp) => qmCovers(imp, t));
+    }
+
+    const candidateLit = (list) => list.reduce((acc, imp) => acc + qmCountLiterals(imp, numVars), 0);
+
+    const search = (uncovered, chosen) => {
+      if (uncovered.size === 0) {
+        if (best === null || chosen.length < best.length ||
+            (chosen.length === best.length && candidateLit(chosen) < candidateLit(best))) {
+          best = chosen.slice();
+        }
+        return;
+      }
+      if (best !== null && chosen.length >= best.length) return;
+
+      let target = null;
+      let minLen = Infinity;
+      for (const t of uncovered) {
+        if (termToImps[t].length < minLen) {
+          minLen = termToImps[t].length;
+          target = t;
+        }
+      }
+
+      const options = termToImps[target].slice().sort((a, b) => {
+        const la = qmCountLiterals(a, numVars);
+        const lb = qmCountLiterals(b, numVars);
+        return la - lb || qmPopcount(b.mask) - qmPopcount(a.mask);
+      });
+
+      for (const imp of options) {
+        chosen.push(imp);
+        const next = new Set([...uncovered].filter((t) => !qmCovers(imp, t)));
+        search(next, chosen);
+        chosen.pop();
+      }
+    };
+
+    search(new Set(remainingTerms), []);
+    if (best) {
+      selected.push(...best);
+      return qmPostSimplify(selected, ones);
+    }
+  }
+
+  const uncovered = new Set(remainingTerms);
+  let active = remainingImplicants.slice();
+  while (uncovered.size > 0) {
+    let bestImp = null;
+    let bestRatio = -1;
+    let bestCount = -1;
+    for (const imp of active) {
+      let count = 0;
+      for (const t of uncovered) if (qmCovers(imp, t)) count += 1;
+      const ratio = count / Math.max(1, qmCountLiterals(imp, numVars));
+      if (ratio > bestRatio || (ratio === bestRatio && count > bestCount)) {
+        bestRatio = ratio;
+        bestCount = count;
+        bestImp = imp;
+      }
+    }
+    selected.push(bestImp);
+    for (const t of [...uncovered]) if (qmCovers(bestImp, t)) uncovered.delete(t);
+    active = active.filter((imp) => [...uncovered].some((t) => qmCovers(imp, t)));
+  }
+
+  return qmPostSimplify(selected, ones);
+}
+
+function qmTermToExpression(imp, variables) {
+  const parts = [];
+  const n = variables.length;
+  for (let i = 0; i < n; i += 1) {
+    const bit = 1 << (n - i - 1);
+    if (imp.mask & bit) continue;
+    parts.push(imp.value & bit ? variables[i] : `!${variables[i]}`);
+  }
+  return parts.length ? parts.join(" & ") : "1";
+}
+
+function qmDetectXorXnor(ones, numVars, variables) {
+  if (numVars < 2) return null;
+  const total = 1 << numVars;
+  const xorSet = new Set();
+  const xnorSet = new Set();
+  for (let t = 0; t < total; t += 1) {
+    (qmPopcount(t) % 2 === 1 ? xorSet : xnorSet).add(t);
+  }
+  const sameSet = (a, b) => a.size === b.size && [...a].every((t) => b.has(t));
+  if (sameSet(ones, xorSet)) return variables.join(" ⊕ ");
+  if (sameSet(ones, xnorSet)) return variables.join(" ⊙ ");
+  return null;
+}
+
+function qmStandardExpression(customExpr, ones, numVars, variables) {
+  if (customExpr === "0" || customExpr === "1") return customExpr;
+  const xorXnor = qmDetectXorXnor(ones, numVars, variables);
+  if (xorXnor) return xorXnor;
+  return customExpr.replace(/ # /g, " + ");
+}
+
+function qmMinimizeOneOutput(variables, rows, outputIdx) {
+  const ones = new Set();
+  const dontCares = new Set();
+  for (const row of rows) {
+    const output = row.outputs[outputIdx];
+    let term = 0;
+    for (const bit of row.inputs) term = (term << 1) | (bit ? 1 : 0);
+    if (output === 1 || output === "1" || output === true) {
+      ones.add(term);
+      dontCares.delete(term);
+    } else if (output === "x" || output === "X" || output === "-") {
+      if (!ones.has(term)) dontCares.add(term);
+    } else {
+      ones.delete(term);
+      dontCares.delete(term);
+    }
+  }
+
+  if (ones.size === 0) return { expression: "0", standard: "0" };
+  if (ones.size + dontCares.size === (1 << variables.length)) {
+    return { expression: "1", standard: "1" };
+  }
+
+  const primes = qmGeneratePrimeImplicants(ones, dontCares);
+  const cover = qmSelectCover(variables.length, ones, primes);
+
+  const exprMap = new Map();
+  const uniqueCover = [];
+  for (const imp of cover) {
+    const key = `${imp.value}:${imp.mask}`;
+    if (!exprMap.has(key)) {
+      exprMap.set(key, qmTermToExpression(imp, variables));
+      uniqueCover.push({ key, imp });
+    }
+  }
+  // 排序时把取反符号 ! 视为最大字符，让正变量项排在取反项之前（与原 Python 版一致）
+  const sortKey = (expr) => expr.replace(/!/g, "\uffff");
+  uniqueCover.sort((a, b) => {
+    const ea = sortKey(exprMap.get(a.key));
+    const eb = sortKey(exprMap.get(b.key));
+    if (ea !== eb) return ea < eb ? -1 : 1;
+    return a.imp.value - b.imp.value;
+  });
+
+  const terms = uniqueCover.map((u) => exprMap.get(u.key));
+  const customExpr = terms.length ? terms.join(" # ") : "0";
+  return { expression: customExpr, standard: qmStandardExpression(customExpr, ones, variables.length, variables) };
+}
+
+function qmMinimizeTruthTable(variables, outputNames, rows) {
+  if (!Array.isArray(variables) || variables.length === 0) {
+    throw new Error("至少需要一个输入变量。");
+  }
+  if (variables.length > BOOLEAN_MAX_VARS) {
+    throw new Error(`最多支持 ${BOOLEAN_MAX_VARS} 个输入变量。`);
+  }
+  if (!Array.isArray(outputNames) || outputNames.length === 0) {
+    throw new Error("至少需要一个输出。");
+  }
+  if (outputNames.length > BOOLEAN_MAX_OUTPUTS) {
+    throw new Error(`最多支持 ${BOOLEAN_MAX_OUTPUTS} 个输出。`);
+  }
+  const results = {};
+  outputNames.forEach((name, oi) => {
+    results[name] = qmMinimizeOneOutput(variables, rows, oi);
+  });
+  return results;
+}
+
+function validateBooleanVarNames(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return { ok: false, message: "请输入至少一个变量名，例如 A, B, C" };
+  const names = text.split(/[,，\s]+/).filter(Boolean);
+  if (!names.length) return { ok: false, message: "请输入至少一个变量名" };
+  if (names.length > BOOLEAN_MAX_VARS) return { ok: false, message: `最多支持 ${BOOLEAN_MAX_VARS} 个变量` };
+  const bad = names.filter((n) => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(n));
+  if (bad.length) return { ok: false, message: `无效变量名：${bad.join(", ")}（仅支持字母、数字、下划线，不能以数字开头）` };
+  if (new Set(names).size !== names.length) return { ok: false, message: "变量名重复" };
+  return { ok: true, names, message: `${names.length} 个变量，共 ${1 << names.length} 行真值表` };
+}
+
+function generateBooleanRows(varCount, outCount) {
+  const total = 1 << varCount;
+  const rows = [];
+  for (let i = 0; i < total; i += 1) {
+    const inputs = [];
+    for (let j = varCount - 1; j >= 0; j -= 1) inputs.push((i >> j) & 1);
+    rows.push({ inputs, outputs: Array.from({ length: outCount }, () => 0) });
+  }
+  return rows;
+}
+
+function runBooleanGenerate() {
+  const b = state.boolean;
+  b.error = "";
+  try {
+    const check = validateBooleanVarNames(b.varText);
+    if (!check.ok) throw new Error(check.message);
+    const outCount = clampInt(b.outCount, 1, BOOLEAN_MAX_OUTPUTS, 1);
+    b.outCount = outCount;
+    let names = b.outNamesText.split(/[,，\s]+/).filter(Boolean);
+    if (names.length !== outCount) {
+      names = Array.from({ length: outCount }, (_, i) => `Y${i + 1}`);
+      b.outNamesText = names.join(", ");
+    }
+    b.variables = check.names;
+    b.outputNames = names;
+    b.rows = generateBooleanRows(check.names.length, outCount);
+    b.tableReady = true;
+    b.results = null;
+  } catch (e) {
+    b.error = e.message || "生成真值表失败";
+  }
+  renderActiveWorkspace();
+}
+
+function runBooleanPreset(varCount, outCount) {
+  const b = state.boolean;
+  b.varText = Array.from({ length: varCount }, (_, i) => String.fromCharCode(65 + i)).join(", ");
+  b.outCount = clampInt(outCount, 1, BOOLEAN_MAX_OUTPUTS, 1);
+  b.outNamesText = "";
+  runBooleanGenerate();
+}
+
+function runBooleanSetAll(value) {
+  const b = state.boolean;
+  if (!b.rows.length) {
+    b.error = "请先生成真值表";
+    renderActiveWorkspace();
+    return;
+  }
+  b.error = "";
+  for (const row of b.rows) row.outputs = row.outputs.map(() => value);
+  b.results = null;
+  renderActiveWorkspace();
+}
+
+function runBooleanCompute() {
+  const b = state.boolean;
+  b.error = "";
+  try {
+    if (!b.tableReady || !b.rows.length) throw new Error("请先生成真值表");
+    b.results = qmMinimizeTruthTable(b.variables, b.outputNames, b.rows);
+  } catch (e) {
+    b.results = null;
+    b.error = e.message || "化简失败";
+  }
+  renderActiveWorkspace();
+}
+
+function updateBooleanVarHint() {
+  const hint = document.getElementById("booleanVarHint");
+  if (!hint) return;
+  const check = validateBooleanVarNames(state.boolean.varText);
+  hint.textContent = check.message;
+  hint.classList.toggle("is-ok", Boolean(check.ok));
+  hint.classList.toggle("is-error", !check.ok);
+}
+
+function renderBooleanWorkspace() {
+  const b = state.boolean;
+  const presets = [
+    { label: "2 输入", action: "boolean-preset-2-1" },
+    { label: "3 输入", action: "boolean-preset-3-1" },
+    { label: "4 输入", action: "boolean-preset-4-1" },
+    { label: "5 输入", action: "boolean-preset-5-1" },
+    { label: "3 入 2 出", action: "boolean-preset-3-2" },
+    { label: "4 入 3 出", action: "boolean-preset-4-3" },
+  ];
+  const check = validateBooleanVarNames(b.varText);
+  return `
+    <div class="mode-banner">
+      <h3 class="mode-title">布尔化简</h3>
+      <p class="mode-copy">配置变量与输出后生成真值表，一键用 Quine-McCluskey 算法化简为最简表达式，支持无关项 x 和多输出。</p>
+      <div class="mode-badges">
+        <span class="mode-badge">最多 ${BOOLEAN_MAX_VARS} 变量 ${BOOLEAN_MAX_OUTPUTS} 输出</span>
+        <span class="mode-badge">支持无关项 x</span>
+      </div>
+    </div>
+
+    <section class="module-card">
+      <h3>1. 配置变量</h3>
+      <div class="input-grid">
+        <label class="field-card input-grid--wide"><span class="field-label">输入变量名（逗号分隔）</span><input id="booleanVars" class="stats-input" type="text" value="${escapeAttr(b.varText)}" placeholder="例如：A, B, C" /></label>
+        <label class="field-card"><span class="field-label">输出个数</span><input id="booleanOutCount" class="stats-input" type="number" min="1" max="10" step="1" value="${escapeAttr(String(b.outCount))}" /></label>
+        <label class="field-card"><span class="field-label">输出名称（留空自动 Y1…）</span><input id="booleanOutNames" class="stats-input" type="text" value="${escapeAttr(b.outNamesText)}" placeholder="例如：Y1, Y2" /></label>
+      </div>
+      <p id="booleanVarHint" class="validation-msg ${check.ok ? "is-ok" : "is-error"}">${escapeHtml(check.message)}</p>
+      <div class="button-row">
+        ${presets.map((p) => `<button class="mode-action" type="button" data-adv-action="${p.action}">${p.label}</button>`).join("")}
+        <button class="mode-action is-active" type="button" data-adv-action="boolean-generate">生成真值表</button>
+      </div>
+    </section>
+
+    ${b.tableReady ? renderBooleanTableCard() : ""}
+    ${b.error ? `<section class="module-card"><p class="mode-copy boolean-error">${escapeHtml(b.error)}</p></section>` : ""}
+    ${renderBooleanResults()}
+  `;
+}
+
+function renderBooleanTableCard() {
+  const b = state.boolean;
+  const rowsHtml = b.rows.map((row, ri) => `
+    <tr>
+      <td class="bits">${ri}</td>
+      ${row.inputs.map((v) => `<td class="bits">${v}</td>`).join("")}
+      ${row.outputs.map((val, oi) => `
+        <td><select class="tt-select" data-tt-row="${ri}" data-tt-out="${oi}" aria-label="第 ${ri} 行 ${escapeHtml(b.outputNames[oi])} 的输出值">
+          ${["0", "1", "x"].map((v) => `<option value="${v}" ${String(val) === v ? "selected" : ""}>${v}</option>`).join("")}
+        </select></td>`).join("")}
+    </tr>`).join("");
+  return `
+    <section class="module-card">
+      <h3>2. 设置输出值（0 / 1 / x）</h3>
+      <div class="table-scroll table-scroll--tall">
+        <table class="data-table">
+          <thead><tr>
+            <th>#</th>
+            ${b.variables.map((v) => `<th>${escapeHtml(v)}</th>`).join("")}
+            ${b.outputNames.map((v) => `<th class="col-out">${escapeHtml(v)}</th>`).join("")}
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="button-row" style="margin-top:12px">
+        <button class="mode-action" type="button" data-adv-action="boolean-all-0">全部 0</button>
+        <button class="mode-action" type="button" data-adv-action="boolean-all-1">全部 1</button>
+        <button class="mode-action" type="button" data-adv-action="boolean-all-x">全部 x</button>
+        <button class="mode-action is-active" type="button" data-adv-action="boolean-compute">生成最简表达式</button>
+      </div>
+      <p id="booleanDirtyHint" class="validation-msg"></p>
+    </section>
+  `;
+}
+
+function renderBooleanResults() {
+  const b = state.boolean;
+  if (!b.results) return "";
+  const entries = b.outputNames.map((name) => ({ name, r: b.results[name] })).filter((e) => e.r);
+  if (!entries.length) return "";
+  return `
+    <section class="result-panel">
+      <h3>最简表达式</h3>
+      <div class="boolean-result">
+        ${entries.map((e) => `
+          <div class="result-row">
+            <span class="result-tag">最简</span>
+            <code>${escapeHtml(e.name)} = ${escapeHtml(e.r.expression)}</code>
+            <button class="ghost-btn ghost-btn--compact" type="button" data-copy-text="${escapeAttr(e.r.expression)}">复制</button>
+          </div>
+          <div class="result-row result-row--standard">
+            <span class="result-tag">标准</span>
+            <code>${escapeHtml(e.name)} = ${escapeHtml(e.r.standard)}</code>
+            <button class="ghost-btn ghost-btn--compact" type="button" data-copy-text="${escapeAttr(e.r.standard)}">复制</button>
+          </div>`).join("")}
+      </div>
+      <p class="mode-copy" style="margin-top:10px">符号约定：! 取反、& 与、# 或；标准形式中 + 表示或，⊕ 异或，⊙ 同或。</p>
+    </section>
+  `;
+}
+
+function persistBoolean() {
+  const b = state.boolean;
+  persistDebounced(STORAGE_KEYS.boolean, JSON.stringify({
+    varText: b.varText,
+    outCount: b.outCount,
+    outNamesText: b.outNamesText,
+    variables: b.variables,
+    outputNames: b.outputNames,
+    rows: b.rows,
+    tableReady: b.tableReady,
+    results: b.results,
+    error: b.error,
+  }));
+}
+
+function hydrateBoolean() {
+  const stored = readStorage(STORAGE_KEYS.boolean);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    const b = state.boolean;
+    if (typeof parsed.varText === "string") b.varText = parsed.varText;
+    if (Number.isFinite(Number(parsed.outCount))) b.outCount = clampInt(parsed.outCount, 1, BOOLEAN_MAX_OUTPUTS, 1);
+    if (typeof parsed.outNamesText === "string") b.outNamesText = parsed.outNamesText;
+    if (Array.isArray(parsed.variables) && parsed.variables.length > 0 && parsed.variables.length <= BOOLEAN_MAX_VARS && parsed.variables.every((v) => typeof v === "string")) {
+      b.variables = parsed.variables;
+    }
+    if (Array.isArray(parsed.outputNames) && parsed.outputNames.length > 0 && parsed.outputNames.length <= BOOLEAN_MAX_OUTPUTS && parsed.outputNames.every((v) => typeof v === "string")) {
+      b.outputNames = parsed.outputNames;
+    }
+    if (Array.isArray(parsed.rows)) {
+      b.rows = parsed.rows.filter((r) => r && Array.isArray(r.inputs) && Array.isArray(r.outputs));
+    }
+    b.tableReady = Boolean(parsed.tableReady) && b.rows.length > 0;
+    b.results = parsed.results && typeof parsed.results === "object" ? parsed.results : null;
+    b.error = typeof parsed.error === "string" ? parsed.error : "";
+  } catch {
+    // keep defaults
+  }
+}
+
+/* ===================== 实验记录 ===================== */
+
+const LAB_MAX_PHOTOS = 12;
+
+function labActiveProject() {
+  return state.labrec.projects.find((p) => p.id === state.labrec.activeId) || null;
+}
+
+function labClampCols(project) {
+  const lr = state.labrec;
+  const numericCols = project.fields
+    .map((_, ci) => ({ ci, numeric: project.rows.some((r) => String(r[ci] ?? "").trim() !== "" && Number.isFinite(Number(r[ci]))) }))
+    .filter((c) => c.numeric)
+    .map((c) => c.ci);
+  if (!(lr.yCol >= 0 && lr.yCol < project.fields.length)) {
+    lr.yCol = numericCols.length ? numericCols[0] : 0;
+  }
+  if (lr.xCol !== -1 && !(lr.xCol >= 0 && lr.xCol < project.fields.length)) {
+    lr.xCol = -1;
+  }
+}
+
+function createDemoLabProject() {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return {
+    id: `p${Date.now().toString(36)}`,
+    name: "示例 · 伏安法测电阻",
+    date,
+    fields: ["测量次数", "电压 U/V", "电流 I/mA"],
+    rows: [[1, "1.0", "20.4"], [2, "2.0", "40.2"], [3, "3.0", "60.8"], [4, "4.0", "79.5"], [5, "5.0", "101.3"], [6, "6.0", "119.6"]],
+    photos: [],
+  };
+}
+
+function runLabrecCreate() {
+  const lr = state.labrec;
+  const name = String(lr.newName || "").trim();
+  const fields = String(lr.newFields || "").split(/[,，]+/).map((f) => f.trim()).filter(Boolean);
+  if (!name) {
+    setHoverHint("请先填写项目名称");
+    return;
+  }
+  if (!fields.length) {
+    setHoverHint("请至少填写一个数据列，例如：测量次数, 电压 U/V");
+    return;
+  }
+  const now = new Date();
+  const project = {
+    id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+    fields,
+    rows: [],
+    photos: [],
+  };
+  lr.projects.push(project);
+  lr.activeId = project.id;
+  lr.showCreate = false;
+  lr.newName = "";
+  lr.rowDraft = [];
+  lr.confirmDelete = false;
+  persistLabrec();
+  renderActiveWorkspace();
+  setHoverHint(`已创建项目「${name}」`);
+}
+
+function runLabrecDelete() {
+  const lr = state.labrec;
+  const project = labActiveProject();
+  if (!project) return;
+  if (!lr.confirmDelete) {
+    lr.confirmDelete = true;
+    renderActiveWorkspace();
+    setHoverHint("再点一次「确认删除」以删除该项目及其全部数据");
+    return;
+  }
+  lr.projects = lr.projects.filter((p) => p.id !== project.id);
+  lr.confirmDelete = false;
+  lr.activeId = lr.projects.length ? lr.projects[0].id : "";
+  persistLabrec();
+  renderActiveWorkspace();
+  setHoverHint(`已删除项目「${project.name}」`);
+}
+
+function runLabrecAddRow() {
+  const lr = state.labrec;
+  const project = labActiveProject();
+  if (!project) return;
+  const row = project.fields.map((_, ci) => {
+    const value = lr.rowDraft[ci];
+    return value === undefined || value === null ? "" : String(value).trim();
+  });
+  project.rows.push(row);
+  lr.rowDraft = [];
+  persistLabrec();
+  renderActiveWorkspace();
+}
+
+function runLabrecClear() {
+  const lr = state.labrec;
+  const project = labActiveProject();
+  if (!project) return;
+  if (!lr.confirmClear) {
+    lr.confirmClear = true;
+    renderActiveWorkspace();
+    setHoverHint("再点一次「确认清空」以清空全部记录行");
+    return;
+  }
+  project.rows = [];
+  lr.confirmClear = false;
+  persistLabrec();
+  renderActiveWorkspace();
+}
+
+function runLabrecExport() {
+  const project = labActiveProject();
+  if (!project) return;
+  if (!project.rows.length) {
+    setHoverHint("当前项目还没有记录行，无法导出");
+    return;
+  }
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [project.fields.map(esc).join(",")];
+  for (const row of project.rows) {
+    lines.push(project.fields.map((_, ci) => esc(row[ci])).join(","));
+  }
+  const filename = `${project.name.replace(/[\\/:*?"<>|]/g, "_")}.csv`;
+  downloadTextFile(filename, lines.join("\r\n"));
+  setHoverHint(`已导出 ${filename}，可直接粘贴到实验报告`);
+}
+
+function compressImageFile(file, maxDim = 900, quality = 0.6) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("图片解码失败"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleLabPhotoFiles(fileList) {
+  const project = labActiveProject();
+  if (!project) return;
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  let added = 0;
+  for (const file of files) {
+    if (project.photos.length >= LAB_MAX_PHOTOS) {
+      setHoverHint(`每份实验最多保存 ${LAB_MAX_PHOTOS} 张照片，多余照片已跳过`);
+      break;
+    }
+    try {
+      const dataUrl = await compressImageFile(file);
+      project.photos.push({
+        id: `ph${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+        name: file.name || "实验照片",
+        dataUrl,
+        time: new Date().toLocaleString("zh-CN", { hour12: false }),
+      });
+      added += 1;
+    } catch (e) {
+      setHoverHint(`照片处理失败：${e.message}`);
+    }
+  }
+  if (added) {
+    persistLabrec();
+    renderActiveWorkspace();
+    setHoverHint(`已添加 ${added} 张照片（自动压缩保存）`);
+  }
+}
+
+function renderLabrecWorkspace() {
+  const lr = state.labrec;
+  const project = labActiveProject();
+  const projectOptions = lr.projects.map((p) => `<option value="${escapeAttr(p.id)}" ${p.id === lr.activeId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("");
+  return `
+    <div class="mode-banner">
+      <h3 class="mode-title">实验记录</h3>
+      <p class="mode-copy">按实验项目当场录入数据，自动生成记录表与图表；支持拍照记录实验现象，一键导出 CSV 直接贴进实验报告。</p>
+      <div class="mode-badges">
+        <span class="mode-badge">数据保存在本机浏览器</span>
+        <span class="mode-badge">照片自动压缩</span>
+      </div>
+    </div>
+
+    <section class="module-card">
+      <h3>实验项目</h3>
+      <div class="button-row">
+        ${lr.projects.length ? `<label class="field-card" style="flex:1;min-width:200px"><span class="field-label">当前项目</span><select id="labProjectSelect" class="base-select">${projectOptions}</select></label>` : ""}
+        <button class="mode-action ${lr.showCreate ? "is-active" : ""}" type="button" data-adv-action="labrec-new">新建项目</button>
+        ${project ? `<button class="mode-action" type="button" data-adv-action="labrec-export">导出 CSV</button>` : ""}
+        ${project ? `<button class="mode-action ${lr.confirmDelete ? "is-active" : ""}" type="button" data-adv-action="labrec-delete">${lr.confirmDelete ? "再点一次确认删除" : "删除项目"}</button>` : ""}
+      </div>
+      ${lr.showCreate ? `
+        <div class="input-grid" style="margin-top:12px">
+          <label class="field-card"><span class="field-label">项目名称</span><input id="labNewName" class="stats-input" type="text" value="${escapeAttr(lr.newName)}" placeholder="例如：伏安法测电阻" /></label>
+          <label class="field-card input-grid--wide"><span class="field-label">数据列（逗号分隔）</span><input id="labNewFields" class="stats-input" type="text" value="${escapeAttr(lr.newFields)}" placeholder="例如：测量次数, 电压 U/V, 电流 I/A" /></label>
+        </div>
+        <div class="button-row" style="margin-top:10px">
+          <button class="mode-action is-active" type="button" data-adv-action="labrec-create">创建项目</button>
+        </div>
+      ` : ""}
+    </section>
+
+    ${project ? renderLabProjectCard(project) : `<section class="module-card"><p class="mode-copy">还没有实验项目，点击「新建项目」创建一个。</p></section>`}
+  `;
+}
+
+function renderLabProjectCard(project) {
+  const lr = state.labrec;
+  labClampCols(project);
+  const rowsHtml = project.rows.map((row, ri) => `
+    <tr>
+      ${row.map((cell, ci) => `<td><input class="cell-input" type="text" value="${escapeAttr(String(cell ?? ""))}" data-lab-cell="${ri},${ci}" aria-label="第 ${ri + 1} 行 ${escapeHtml(project.fields[ci])}" /></td>`).join("")}
+      <td><button class="ghost-btn ghost-btn--compact ghost-btn--danger" type="button" data-adv-action="labrec-del-row" data-row="${ri}">删除</button></td>
+    </tr>`).join("");
+  return `
+    <section class="module-card">
+      <h3>录入数据（${escapeHtml(project.date)}）</h3>
+      <div class="input-grid">
+        ${project.fields.map((f, ci) => `<label class="field-card"><span class="field-label">${escapeHtml(f)}</span><input class="stats-input" type="text" data-lab-new-col="${ci}" value="${escapeAttr(String(lr.rowDraft[ci] ?? ""))}" placeholder="输入${escapeHtml(f)}" /></label>`).join("")}
+      </div>
+      <div class="button-row" style="margin-top:10px">
+        <button class="mode-action is-active" type="button" data-adv-action="labrec-add-row">添加记录</button>
+        <button class="mode-action ${lr.confirmClear ? "is-active" : ""}" type="button" data-adv-action="labrec-clear">${lr.confirmClear ? "再点一次确认清空" : "清空记录"}</button>
+      </div>
+    </section>
+
+    <section class="result-panel">
+      <h3>记录表（自动生成）</h3>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>${project.fields.map((f) => `<th>${escapeHtml(f)}</th>`).join("")}<th>操作</th></tr></thead>
+          <tbody>${project.rows.length ? rowsHtml : `<tr><td colspan="${project.fields.length + 1}" class="table-empty">暂无记录，在上方录入后点击「添加记录」。</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="module-card">
+      <h3>数据图表</h3>
+      <div class="input-grid">
+        <label class="field-card"><span class="field-label">图表类型</span><select id="labChartType" class="base-select">
+          <option value="line" ${lr.chartType === "line" ? "selected" : ""}>折线图</option>
+          <option value="scatter" ${lr.chartType === "scatter" ? "selected" : ""}>散点图</option>
+          <option value="bar" ${lr.chartType === "bar" ? "selected" : ""}>柱状图</option>
+        </select></label>
+        <label class="field-card"><span class="field-label">横轴</span><select id="labXCol" class="base-select">
+          <option value="-1" ${lr.xCol === -1 ? "selected" : ""}>记录序号</option>
+          ${project.fields.map((f, ci) => `<option value="${ci}" ${lr.xCol === ci ? "selected" : ""}>${escapeHtml(f)}</option>`).join("")}
+        </select></label>
+        <label class="field-card"><span class="field-label">纵轴列</span><select id="labYCol" class="base-select">
+          ${project.fields.map((f, ci) => `<option value="${ci}" ${lr.yCol === ci ? "selected" : ""}>${escapeHtml(f)}</option>`).join("")}
+        </select></label>
+      </div>
+      <div class="chart-box"><canvas id="labChartCanvas" class="chart-canvas"></canvas></div>
+      <p class="mode-copy" style="margin-top:8px">纵轴只绘制能解析为数字的记录；横轴选「记录序号」则按录入顺序绘制。</p>
+    </section>
+
+    <section class="module-card">
+      <h3>实验现象照片</h3>
+      <div class="button-row">
+        <label class="mode-action mode-action--label">拍照<input id="labPhotoCamera" type="file" accept="image/*" capture="environment" class="hidden-file" /></label>
+        <label class="mode-action mode-action--label">从相册选择<input id="labPhotoGallery" type="file" accept="image/*" multiple class="hidden-file" /></label>
+      </div>
+      ${project.photos.length ? `
+        <div class="photo-grid">
+          ${project.photos.map((p) => `
+            <figure class="photo-card">
+              <img src="${escapeAttr(p.dataUrl)}" alt="${escapeAttr(p.name)}" />
+              <figcaption class="photo-meta">
+                <span class="photo-name">${escapeHtml(p.name)}</span>
+                <button class="ghost-btn ghost-btn--compact ghost-btn--danger" type="button" data-adv-action="labrec-del-photo" data-photo="${escapeAttr(p.id)}">删除</button>
+              </figcaption>
+            </figure>`).join("")}
+        </div>` : `<p class="mode-copy" style="margin-top:8px">还没有照片。手机上点「拍照」可直接调起相机。</p>`}
+      <p class="mode-copy" style="margin-top:8px">照片压缩后保存在浏览器中（每份项目最多 ${LAB_MAX_PHOTOS} 张）。</p>
+    </section>
+  `;
+}
+
+function drawLabChart() {
+  const canvas = document.getElementById("labChartCanvas");
+  if (!canvas) return;
+  const project = labActiveProject();
+  if (!project) return;
+  labClampCols(project);
+  const lr = state.labrec;
+  const xs = [];
+  const ys = [];
+  project.rows.forEach((row, ri) => {
+    const yv = Number(row[lr.yCol]);
+    if (!Number.isFinite(yv) || String(row[lr.yCol] ?? "").trim() === "") return;
+    if (lr.xCol >= 0) {
+      const xv = Number(row[lr.xCol]);
+      xs.push(String(row[lr.xCol] ?? "").trim() !== "" && Number.isFinite(xv) ? xv : ri + 1);
+    } else {
+      xs.push(ri + 1);
+    }
+    ys.push(yv);
+  });
+  drawChart(canvas, {
+    type: lr.chartType,
+    xs: lr.chartType === "bar" ? undefined : xs,
+    ys,
+    xLabel: lr.xCol >= 0 ? project.fields[lr.xCol] : "记录序号",
+    yLabel: project.fields[lr.yCol] || "数值",
+    title: project.name,
+  });
+}
+
+function persistLabrec() {
+  let payload = JSON.stringify(state.labrec);
+  if (payload.length > 4200000) {
+    for (const p of state.labrec.projects) {
+      while (p.photos.length && payload.length > 4200000) p.photos.shift();
+      payload = JSON.stringify(state.labrec);
+      if (payload.length <= 4200000) break;
+    }
+    setHoverHint("浏览器存储空间不足，较早的照片已被移除");
+  }
+  persistDebounced(STORAGE_KEYS.labrec, payload);
+}
+
+function hydrateLabrec() {
+  const stored = readStorage(STORAGE_KEYS.labrec);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed.projects)) {
+        state.labrec.projects = parsed.projects
+          .filter((p) => p && typeof p.name === "string" && Array.isArray(p.fields) && p.fields.length > 0)
+          .map((p) => ({
+            id: typeof p.id === "string" && p.id ? p.id : `p${Math.random().toString(36).slice(2, 9)}`,
+            name: p.name,
+            date: typeof p.date === "string" ? p.date : "",
+            fields: p.fields.map((f) => String(f)),
+            rows: Array.isArray(p.rows) ? p.rows.filter((r) => Array.isArray(r)) : [],
+            photos: Array.isArray(p.photos) ? p.photos.filter((ph) => ph && typeof ph.dataUrl === "string") : [],
+          }));
+        state.labrec.activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
+        state.labrec.chartType = ["line", "scatter", "bar"].includes(parsed.chartType) ? parsed.chartType : "line";
+        state.labrec.xCol = Number.isFinite(parsed.xCol) ? parsed.xCol : -1;
+        state.labrec.yCol = Number.isFinite(parsed.yCol) ? parsed.yCol : 1;
+      }
+    } catch {
+      // keep defaults
+    }
+  }
+  if (!state.labrec.projects.length) state.labrec.projects = [createDemoLabProject()];
+  if (!labActiveProject()) state.labrec.activeId = state.labrec.projects[0].id;
+}
+
+/* ===================== 数据处理工具箱 ===================== */
+
+const DATAPROC_DEMO = `电压 U/V,电流 I/mA
+1.0,20.4
+2.0,40.2
+3.0,60.8
+4.0,79.5
+5.0,101.3
+6.0,119.6`;
+
+const DP_FIT_OPTIONS = [
+  { value: "none", label: "不拟合", degree: 0 },
+  { value: "linear", label: "线性拟合", degree: 1 },
+  { value: "poly2", label: "二次多项式", degree: 2 },
+  { value: "poly3", label: "三次多项式", degree: 3 },
+  { value: "poly4", label: "四次多项式", degree: 4 },
+];
+
+function parseCsvTable(raw) {
+  const lines = String(raw || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const probe = lines[0];
+  const delim = probe.includes("\t") ? "\t" : probe.includes(";") ? ";" : probe.includes(",") ? "," : null;
+  const split = (line) => (delim ? line.split(delim).map((s) => s.trim()) : line.trim().split(/\s+/));
+  let table = lines.map(split).map((cells) => cells.map((s) => s.replace(/^"(.*)"$/, "$1").replace(/""/g, '"')));
+  table = table.filter((cells) => cells.some((c) => c !== ""));
+  if (!table.length) return null;
+  const colCount = Math.max(...table.map((r) => r.length));
+  table = table.map((r) => {
+    const copy = r.slice();
+    while (copy.length < colCount) copy.push("");
+    return copy;
+  });
+  const firstRowNumeric = table[0].every((c) => c === "" || Number.isFinite(Number(c)));
+  const headers = firstRowNumeric ? null : table[0];
+  if (!firstRowNumeric) table = table.slice(1);
+  const columns = [];
+  for (let ci = 0; ci < colCount; ci += 1) {
+    const name = headers ? (headers[ci] || `列${ci + 1}`) : `列${ci + 1}`;
+    const cells = table.map((r) => r[ci] ?? "");
+    const values = cells.map((c) => (c === "" ? NaN : Number(c)));
+    const finiteCount = values.filter(Number.isFinite).length;
+    const numeric = finiteCount >= 1 && cells.every((c) => c === "" || Number.isFinite(Number(c)));
+    columns.push({ index: ci, name, values, numeric, stats: numeric ? computeColumnStats(values) : null });
+  }
+  return { headers, columns, rowCount: table.length };
+}
+
+function computeColumnStats(values) {
+  const xs = values.filter(Number.isFinite);
+  const n = xs.length;
+  if (!n) return null;
+  let sum = 0;
+  for (const v of xs) sum += v;
+  const mean = sum / n;
+  let varSum = 0;
+  for (const v of xs) varSum += (v - mean) * (v - mean);
+  const variance = n > 1 ? varSum / (n - 1) : 0;
+  const std = Math.sqrt(variance);
+  const se = n > 1 ? std / Math.sqrt(n) : 0;
+  let min = xs[0];
+  let max = xs[0];
+  for (const v of xs) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return { n, mean, variance, std, se, err95: 1.96 * se, min, max, range: max - min };
+}
+
+function polyEvalAsc(coeffs, x) {
+  let y = 0;
+  for (let i = coeffs.length - 1; i >= 0; i -= 1) y = y * x + coeffs[i];
+  return y;
+}
+
+function fitPolynomial(xs, ys, degree) {
+  const n = degree + 1;
+  const m = xs.length;
+  const s = new Array(2 * degree + 1).fill(0);
+  const t = new Array(n).fill(0);
+  for (let i = 0; i < m; i += 1) {
+    const x = xs[i];
+    let xk = 1;
+    for (let k = 0; k <= 2 * degree; k += 1) {
+      s[k] += xk;
+      xk *= x;
+    }
+    let yk = 1;
+    for (let k = 0; k < n; k += 1) {
+      t[k] += ys[i] * yk;
+      yk *= x;
+    }
+  }
+  const rows = [];
+  for (let j = 0; j < n; j += 1) {
+    const row = [];
+    for (let k = 0; k < n; k += 1) row.push(s[j + k]);
+    row.push(t[j]);
+    rows.push(row);
+  }
+  let coeffs;
+  try {
+    coeffs = solveLinearSystem(rows);
+  } catch {
+    throw new Error("拟合失败：该阶数下矩阵奇异，请降低拟合阶数");
+  }
+  if (coeffs.some((c) => !Number.isFinite(c))) {
+    throw new Error("拟合失败：数值不稳定，请降低拟合阶数");
+  }
+  let meanY = 0;
+  for (const y of ys) meanY += y;
+  meanY /= m;
+  let ssRes = 0;
+  let ssTot = 0;
+  for (let i = 0; i < m; i += 1) {
+    const yh = polyEvalAsc(coeffs, xs[i]);
+    ssRes += (ys[i] - yh) * (ys[i] - yh);
+    ssTot += (ys[i] - meanY) * (ys[i] - meanY);
+  }
+  const r2 = ssTot > 1e-15 ? 1 - ssRes / ssTot : (ssRes > 1e-15 ? 0 : 1);
+  return { degree, coeffs, r2, formula: formatPolyFormula(coeffs), points: m };
+}
+
+function formatPolyFormula(coeffs) {
+  const sup = { 2: "²", 3: "³", 4: "⁴" };
+  const parts = [];
+  for (let i = coeffs.length - 1; i >= 0; i -= 1) {
+    const c = coeffs[i];
+    if (Math.abs(c) < 1e-12 && coeffs.length > 1) continue;
+    const absText = formatFitNumber(Math.abs(c));
+    let term;
+    if (i === 0) {
+      term = absText;
+    } else {
+      const power = i === 1 ? "x" : `x${sup[i] || ("^" + i)}`;
+      term = (absText === "1" ? "" : `${absText}·`) + power;
+    }
+    parts.push({ sign: c < 0 ? "−" : "+", term });
+  }
+  if (!parts.length) return "y = 0";
+  let out = `${parts[0].sign === "−" ? "−" : ""}${parts[0].term}`;
+  for (let i = 1; i < parts.length; i += 1) out += ` ${parts[i].sign} ${parts[i].term}`;
+  return `y = ${out}`;
+}
+
+function formatFitNumber(v) {
+  if (!Number.isFinite(v)) return "—";
+  if (v === 0) return "0";
+  const abs = Math.abs(v);
+  if (abs >= 1e6 || abs < 1e-4) return v.toExponential(3);
+  return String(parseFloat(v.toPrecision(5)));
+}
+
+function analyzeDataprocData() {
+  const dp = state.dataproc;
+  dp.error = "";
+  const parsed = parseCsvTable(dp.rawInput);
+  if (!parsed) throw new Error("没有可解析的数据，请粘贴 CSV 或逐行输入数值");
+  if (!parsed.columns.some((c) => c.numeric)) throw new Error("未找到数值列，请检查数据格式");
+  dp.parsed = parsed;
+  const numericCols = parsed.columns.filter((c) => c.numeric);
+  if (!numericCols.some((c) => c.index === dp.xCol)) dp.xCol = numericCols[0].index;
+  if (!numericCols.some((c) => c.index === dp.yCol)) dp.yCol = numericCols.length > 1 ? numericCols[1].index : numericCols[0].index;
+  computeDataprocFit();
+}
+
+function computeDataprocFit() {
+  const dp = state.dataproc;
+  dp.fit = null;
+  dp.fitError = "";
+  if (!dp.parsed || dp.fitType === "none") return;
+  const option = DP_FIT_OPTIONS.find((o) => o.value === dp.fitType);
+  if (!option || option.degree < 1) return;
+  const xCol = dp.parsed.columns.find((c) => c.index === dp.xCol);
+  const yCol = dp.parsed.columns.find((c) => c.index === dp.yCol);
+  if (!xCol || !yCol) return;
+  const xs = [];
+  const ys = [];
+  yCol.values.forEach((yv, i) => {
+    const xv = dp.xCol === dp.yCol ? i + 1 : xCol.values[i];
+    if (Number.isFinite(xv) && Number.isFinite(yv)) {
+      xs.push(xv);
+      ys.push(yv);
+    }
+  });
+  if (xs.length < option.degree + 1) {
+    dp.fitError = `有效数据点不足（至少需要 ${option.degree + 1} 个）`;
+    return;
+  }
+  try {
+    dp.fit = fitPolynomial(xs, ys, option.degree);
+  } catch (e) {
+    dp.fitError = e.message || "拟合失败";
+  }
+}
+
+function runDataprocAnalyze() {
+  const dp = state.dataproc;
+  dp.error = "";
+  try {
+    analyzeDataprocData();
+  } catch (e) {
+    dp.parsed = null;
+    dp.fit = null;
+    dp.error = e.message || "解析失败";
+  }
+  renderActiveWorkspace();
+}
+
+function runDataprocExportImage() {
+  const canvas = document.getElementById("dpChartCanvas");
+  if (!canvas) {
+    setHoverHint("请先解析数据并生成图表");
+    return;
+  }
+  downloadDataUrl("实验数据图.png", canvas.toDataURL("image/png"));
+  setHoverHint("已导出图表 PNG 图片，可直接插入实验报告");
+}
+
+function renderDataprocWorkspace() {
+  const dp = state.dataproc;
+  const numericCols = dp.parsed ? dp.parsed.columns.filter((c) => c.numeric) : [];
+  const colOption = (selected) => numericCols
+    .map((c) => `<option value="${c.index}" ${c.index === selected ? "selected" : ""}>${escapeHtml(c.name)}</option>`)
+    .join("");
+  return `
+    <div class="mode-banner">
+      <h3 class="mode-title">数据处理工具箱</h3>
+      <p class="mode-copy">粘贴 CSV 数据或手动输入，自动计算均值、方差、标准差与误差范围，一键绘制图表并做线性/多项式拟合，导出图片贴进实验报告。</p>
+      <div class="mode-badges">
+        <span class="mode-badge">支持逗号 / 分号 / 制表符 / 空格分隔</span>
+        <span class="mode-badge">自动识别表头</span>
+      </div>
+    </div>
+
+    <section class="module-card">
+      <h3>1. 输入数据</h3>
+      <textarea id="dpRawInput" class="stats-input dp-textarea" rows="8" spellcheck="false" placeholder="每行一条记录，用逗号分隔各列，例如：&#10;电压 U/V,电流 I/mA&#10;1.0,20.4&#10;2.0,40.2">${escapeHtml(dp.rawInput)}</textarea>
+      <div class="button-row" style="margin-top:10px">
+        <button class="mode-action is-active" type="button" data-adv-action="dp-analyze">分析数据</button>
+        <button class="mode-action" type="button" data-adv-action="dp-demo">示例数据</button>
+        <button class="mode-action" type="button" data-adv-action="dp-clear">清空</button>
+      </div>
+    </section>
+
+    ${dp.error ? `<section class="module-card"><p class="mode-copy boolean-error">${escapeHtml(dp.error)}</p></section>` : ""}
+    ${dp.parsed ? renderDataprocAnalysis() : ""}
+  `;
+}
+
+function renderDataprocAnalysis() {
+  const dp = state.dataproc;
+  const numericCols = dp.parsed.columns.filter((c) => c.numeric && c.stats);
+  const colOption = (selected) => numericCols
+    .map((c) => `<option value="${c.index}" ${c.index === selected ? "selected" : ""}>${escapeHtml(c.name)}</option>`)
+    .join("");
+  const statsHtml = numericCols.map((c) => {
+    const s = c.stats;
+    return `
+      <section class="module-card">
+        <h3>统计：${escapeHtml(c.name)}</h3>
+        <div class="summary-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+          <div class="summary-card"><span class="summary-label">样本数 n</span><strong>${s.n}</strong></div>
+          <div class="summary-card"><span class="summary-label">均值</span><strong>${formatFitNumber(s.mean)}</strong></div>
+          <div class="summary-card"><span class="summary-label">方差 s²</span><strong>${formatFitNumber(s.variance)}</strong></div>
+          <div class="summary-card"><span class="summary-label">标准差 s</span><strong>${formatFitNumber(s.std)}</strong></div>
+          <div class="summary-card"><span class="summary-label">误差范围 (95%)</span><strong>±${formatFitNumber(s.err95)}</strong></div>
+          <div class="summary-card"><span class="summary-label">极差</span><strong>${formatFitNumber(s.range)}</strong></div>
+        </div>
+      </section>`;
+  }).join("");
+
+  return `
+    ${statsHtml}
+
+    <section class="module-card">
+      <h3>图表</h3>
+      <div class="input-grid">
+        <label class="field-card"><span class="field-label">图表类型</span><select id="dpChartType" class="base-select">
+          <option value="line" ${dp.chartType === "line" ? "selected" : ""}>折线图</option>
+          <option value="scatter" ${dp.chartType === "scatter" ? "selected" : ""}>散点图</option>
+          <option value="bar" ${dp.chartType === "bar" ? "selected" : ""}>柱状图</option>
+        </select></label>
+        <label class="field-card"><span class="field-label">横轴列</span><select id="dpXCol" class="base-select">${colOption(dp.xCol)}</select></label>
+        <label class="field-card"><span class="field-label">纵轴列</span><select id="dpYCol" class="base-select">${colOption(dp.yCol)}</select></label>
+        <label class="field-card"><span class="field-label">拟合方式</span><select id="dpFitType" class="base-select">
+          ${DP_FIT_OPTIONS.map((o) => `<option value="${o.value}" ${dp.fitType === o.value ? "selected" : ""}>${o.label}</option>`).join("")}
+        </select></label>
+      </div>
+      <div class="chart-box"><canvas id="dpChartCanvas" class="chart-canvas"></canvas></div>
+      <div class="button-row" style="margin-top:10px">
+        <button class="mode-action" type="button" data-adv-action="dp-export-image">导出图片 PNG</button>
+      </div>
+      ${dp.fitError ? `<p class="validation-msg is-error" style="margin-top:8px">${escapeHtml(dp.fitError)}</p>` : ""}
+      ${dp.fit ? `
+        <div class="result-row result-row--standard" style="margin-top:10px">
+          <span class="result-tag">拟合</span>
+          <code>${escapeHtml(dp.fit.formula)}　R² = ${escapeHtml(formatFitNumber(dp.fit.r2))}</code>
+          <button class="ghost-btn ghost-btn--compact" type="button" data-copy-text="${escapeAttr(`${dp.fit.formula}  R² = ${formatFitNumber(dp.fit.r2)}`)}">复制</button>
+        </div>` : ""}
+    </section>
+  `;
+}
+
+function drawDataprocChart() {
+  const canvas = document.getElementById("dpChartCanvas");
+  if (!canvas || !state.dataproc.parsed) return;
+  const dp = state.dataproc;
+  const xCol = dp.parsed.columns.find((c) => c.index === dp.xCol);
+  const yCol = dp.parsed.columns.find((c) => c.index === dp.yCol);
+  if (!xCol || !yCol) return;
+  const xs = [];
+  const ys = [];
+  yCol.values.forEach((yv, i) => {
+    const xv = dp.xCol === dp.yCol ? i + 1 : xCol.values[i];
+    if (Number.isFinite(xv) && Number.isFinite(yv)) {
+      xs.push(xv);
+      ys.push(yv);
+    }
+  });
+  const legendLines = dp.fit ? [`${dp.fit.formula}   R² = ${formatFitNumber(dp.fit.r2)}`] : [];
+  drawChart(canvas, {
+    type: dp.chartType,
+    xs: dp.chartType === "bar" ? undefined : xs,
+    ys,
+    xLabel: dp.xCol === dp.yCol ? "记录序号" : xCol.name,
+    yLabel: yCol.name,
+    fit: dp.fit && dp.chartType !== "bar" ? dp.fit : null,
+    legendLines,
+    title: "实验数据图",
+  });
+}
+
+function persistDataproc() {
+  const dp = state.dataproc;
+  persistDebounced(STORAGE_KEYS.dataproc, JSON.stringify({
+    rawInput: dp.rawInput,
+    chartType: dp.chartType,
+    xCol: dp.xCol,
+    yCol: dp.yCol,
+    fitType: dp.fitType,
+  }));
+}
+
+function hydrateDataproc() {
+  const stored = readStorage(STORAGE_KEYS.dataproc);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      const dp = state.dataproc;
+      if (typeof parsed.rawInput === "string") dp.rawInput = parsed.rawInput;
+      dp.chartType = ["line", "scatter", "bar"].includes(parsed.chartType) ? parsed.chartType : dp.chartType;
+      dp.fitType = ["none", "linear", "poly2", "poly3", "poly4"].includes(parsed.fitType) ? parsed.fitType : dp.fitType;
+      if (Number.isFinite(parsed.xCol)) dp.xCol = parsed.xCol;
+      if (Number.isFinite(parsed.yCol)) dp.yCol = parsed.yCol;
+    } catch {
+      // keep defaults
+    }
+  }
+  if (!state.dataproc.rawInput.trim()) state.dataproc.rawInput = DATAPROC_DEMO;
+  try {
+    analyzeDataprocData();
+  } catch {
+    // 首屏保持空状态，用户点击「分析数据」时会看到错误提示
+  }
+}
+
+/* ===================== 图表引擎（Canvas） ===================== */
+
+const CHART_COLORS = {
+  line: "#f3c56d",
+  point: "#7fe0d0",
+  bar: "#f0b55b",
+  fit: "#ff9d76",
+  grid: "rgba(255,255,255,0.07)",
+  axis: "rgba(243,239,232,0.45)",
+  text: "#a6aea8",
+  bg: "#0a1214",
+  title: "#f3efe8",
+};
+
+function niceTicks(min, max, targetCount = 5) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [min];
+  const span = max - min;
+  const step0 = span / Math.max(1, targetCount);
+  const mag = 10 ** Math.floor(Math.log10(step0));
+  let step = mag;
+  for (const m of [1, 2, 2.5, 5, 10]) {
+    if (step0 <= m * mag) {
+      step = m * mag;
+      break;
+    }
+  }
+  const ticks = [];
+  const start = Math.ceil(min / step - 1e-9) * step;
+  for (let v = start; v <= max + step * 1e-9; v += step) {
+    ticks.push(Number(v.toFixed(10)));
+  }
+  return ticks;
+}
+
+function formatTick(v) {
+  if (v === 0) return "0";
+  const abs = Math.abs(v);
+  if (abs >= 1e6 || abs < 1e-4) return v.toExponential(1);
+  return String(parseFloat(v.toPrecision(4)));
+}
+
+function drawChart(canvas, cfg) {
+  if (!canvas || typeof canvas.getContext !== "function") return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = Math.max(280, Math.round(canvas.clientWidth || 560));
+  const cssHeight = Math.max(220, Math.round(Math.min(420, cssWidth * 0.55)));
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(cssHeight * dpr);
+  canvas.style.height = `${cssHeight}px`;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = CHART_COLORS.bg;
+  ctx.fillRect(0, 0, cssWidth, cssHeight);
+
+  const legendLines = cfg.legendLines || [];
+  const title = cfg.title || "";
+
+  const points = [];
+  const ysArr = cfg.ys || [];
+  for (let i = 0; i < ysArr.length; i += 1) {
+    const x = Array.isArray(cfg.xs) ? cfg.xs[i] : i + 1;
+    const y = ysArr[i];
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
+  }
+
+  ctx.textBaseline = "middle";
+  ctx.font = "12px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+  if (!points.length) {
+    ctx.fillStyle = CHART_COLORS.text;
+    ctx.textAlign = "center";
+    ctx.fillText("暂无可绘制的数据", cssWidth / 2, cssHeight / 2);
+    return;
+  }
+
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  let yMin = Infinity;
+  let yMax = -Infinity;
+  for (const p of points) {
+    if (p.x < xMin) xMin = p.x;
+    if (p.x > xMax) xMax = p.x;
+    if (p.y < yMin) yMin = p.y;
+    if (p.y > yMax) yMax = p.y;
+  }
+
+  let fitSamples = null;
+  if (cfg.fit && Array.isArray(cfg.fit.coeffs) && cfg.type !== "bar") {
+    fitSamples = [];
+    for (let i = 0; i <= 120; i += 1) {
+      const x = xMin + (xMax - xMin) * (i / 120);
+      const y = polyEvalAsc(cfg.fit.coeffs, x);
+      fitSamples.push({ x, y });
+      if (Number.isFinite(y)) {
+        if (y < yMin) yMin = y;
+        if (y > yMax) yMax = y;
+      }
+    }
+  }
+
+  if (xMax - xMin < 1e-12) {
+    xMin -= 1;
+    xMax += 1;
+  }
+  if (yMax - yMin < 1e-12) {
+    yMin -= 1;
+    yMax += 1;
+  }
+  const yPad = (yMax - yMin) * 0.08;
+  yMin -= yPad;
+  yMax += yPad;
+
+  const titleTop = 10;
+  const legendStart = titleTop + (title ? 17 : 0) + 4;
+  const marginTop = legendStart + legendLines.length * 16 + 6;
+  const marginLeft = 58;
+  const marginRight = 14;
+  const marginBottom = 40;
+  const plotW = Math.max(10, cssWidth - marginLeft - marginRight);
+  const plotH = Math.max(10, cssHeight - marginTop - marginBottom);
+  const px = (v) => marginLeft + ((v - xMin) / (xMax - xMin)) * plotW;
+  const py = (v) => marginTop + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  ctx.font = "11px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = CHART_COLORS.grid;
+  ctx.fillStyle = CHART_COLORS.text;
+  const xTicks = niceTicks(xMin, xMax, 6);
+  const yTicks = niceTicks(yMin, yMax, 5);
+  ctx.textAlign = "center";
+  for (const t of xTicks) {
+    const x = px(t);
+    ctx.beginPath();
+    ctx.moveTo(x, marginTop);
+    ctx.lineTo(x, marginTop + plotH);
+    ctx.stroke();
+    ctx.fillText(formatTick(t), x, marginTop + plotH + 14);
+  }
+  ctx.textAlign = "right";
+  for (const t of yTicks) {
+    const y = py(t);
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, y);
+    ctx.lineTo(marginLeft + plotW, y);
+    ctx.stroke();
+    ctx.fillText(formatTick(t), marginLeft - 6, y);
+  }
+  ctx.strokeStyle = CHART_COLORS.axis;
+  ctx.beginPath();
+  ctx.moveTo(marginLeft, marginTop);
+  ctx.lineTo(marginLeft, marginTop + plotH);
+  ctx.lineTo(marginLeft + plotW, marginTop + plotH);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(marginLeft, marginTop, plotW, plotH);
+  ctx.clip();
+
+  if (cfg.type === "bar") {
+    const slot = plotW / points.length;
+    const bw = Math.max(3, slot * 0.6);
+    const baseline = 0 >= yMin && 0 <= yMax ? 0 : yMin;
+    const baseY = py(baseline);
+    for (const p of points) {
+      const cx = px(p.x);
+      const topY = py(p.y);
+      const grad = ctx.createLinearGradient(0, topY, 0, baseY);
+      grad.addColorStop(0, CHART_COLORS.bar);
+      grad.addColorStop(1, "rgba(240,181,91,0.35)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(cx - bw / 2, Math.min(topY, baseY), bw, Math.max(1, Math.abs(baseY - topY)));
+    }
+  } else {
+    if (cfg.type === "line" && points.length > 1) {
+      ctx.strokeStyle = CHART_COLORS.line;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const x = px(p.x);
+        const y = py(p.y);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+    ctx.fillStyle = CHART_COLORS.point;
+    for (const p of points) {
+      ctx.beginPath();
+      ctx.arc(px(p.x), py(p.y), 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (fitSamples) {
+      ctx.strokeStyle = CHART_COLORS.fit;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      fitSamples.forEach((p, i) => {
+        const x = px(p.x);
+        const y = py(p.y);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+
+  ctx.fillStyle = CHART_COLORS.text;
+  ctx.font = "12px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+  ctx.textAlign = "center";
+  if (cfg.xLabel) ctx.fillText(cfg.xLabel, marginLeft + plotW / 2, cssHeight - 12);
+  if (cfg.yLabel) {
+    ctx.save();
+    ctx.translate(14, marginTop + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(cfg.yLabel, 0, 0);
+    ctx.restore();
+  }
+  if (title) {
+    ctx.fillStyle = CHART_COLORS.title;
+    ctx.textAlign = "center";
+    ctx.fillText(title, cssWidth / 2, titleTop + 8);
+  }
+  if (legendLines.length) {
+    ctx.fillStyle = CHART_COLORS.fit;
+    ctx.textAlign = "left";
+    ctx.font = "12px Consolas, 'Microsoft YaHei', monospace";
+    legendLines.forEach((line, i) => ctx.fillText(line, marginLeft + 6, legendStart + 8 + i * 16));
+  }
+}
+
+/* ===================== 导出与剪贴板工具 ===================== */
+
+function downloadDataUrl(filename, href) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([`\uFEFF${text}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  downloadDataUrl(filename, url);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function copyTextToClipboard(text, button) {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch {
+      ok = false;
+    }
+  }
+  if (button) {
+    const original = button.textContent;
+    button.textContent = ok ? "已复制" : "复制失败";
+    setTimeout(() => {
+      button.textContent = original;
+    }, 1500);
+  }
+  setHoverHint(ok ? "已复制到剪贴板" : "复制失败，请手动选择文本复制");
+}
+
+let chartResizeTimer = null;
+function handleChartResize() {
+  clearTimeout(chartResizeTimer);
+  chartResizeTimer = setTimeout(() => {
+    if (state.tool === "labrec") drawLabChart();
+    if (state.tool === "dataproc") drawDataprocChart();
+  }, 150);
+}
+
+// 在文件末尾启动应用，确保所有常量（如 DATAPROC_DEMO）已完成初始化
+initialize();
