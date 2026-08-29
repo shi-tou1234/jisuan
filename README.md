@@ -2,7 +2,9 @@
 
 > 顶栏四栏目切换的学习工具集合，卡西欧 fx-991 风格深色 UI，纯前端实现，零依赖、零网络请求。
 
-https://shi-tou1234.github.io/study-platform/· 直接打开 `index.html` 即可使用
+https://shi-tou1234.github.io/study-platform/
+
+直接打开 `index.html` 即可使用
 
 ---
 
